@@ -1,5 +1,7 @@
 import 'reflect-metadata';
 import { FastifyInstance } from 'fastify';
+import fp from 'fastify-plugin';
+
 import { DataSource } from 'typeorm';
 import { config } from '../config';
 
@@ -24,7 +26,7 @@ const dataSource = new DataSource({
   logging: false,
 });
 
-async function dbPlugin(fastify: FastifyInstance) {
+async function dbPluginFunction(fastify: FastifyInstance) {
   if (!dataSource.isInitialized) {
     await dataSource.initialize();
     fastify.log.info('Database connection initialized');
@@ -38,6 +40,9 @@ async function dbPlugin(fastify: FastifyInstance) {
     }
   });
 }
+const dbPlugin = fp(dbPluginFunction, {
+  name: 'db-plugin',
+});
 
 export { dataSource,dbPlugin };
 

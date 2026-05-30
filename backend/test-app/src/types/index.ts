@@ -1,3 +1,5 @@
+import { DataSource } from 'typeorm';
+
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
@@ -31,5 +33,9 @@ declare module 'fastify' {
     user?: {
       userId: string;
     };
+  }
+
+   interface FastifyInstance {
+    db: DataSource;
   }
 }
