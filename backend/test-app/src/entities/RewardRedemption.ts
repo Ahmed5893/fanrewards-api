@@ -7,10 +7,16 @@ import {
   Index,
 } from 'typeorm';
 import { User } from './User';
-import { Challenge } from './Challenge';
+import { Reward } from './Reward';
 
-@Entity('challenge_completions')
-export class ChallengeCompletion {
+export enum RewardRedemptionStatus {
+  PENDING = 'pending',
+  FULFILLED = 'fulfilled',
+  CANCELLED = 'cancelled',
+}
+
+@Entity('reward_redemptions')
+export class RewardRedemption {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -20,23 +26,27 @@ export class ChallengeCompletion {
 
   @Index()
   @Column({ type: 'uuid' })
-  challengeId!: string;
+  rewardId!: string;
 
   @ManyToOne(() => User, {
     onDelete: 'RESTRICT',
   })
   user!: User;
 
-  @ManyToOne(() => Challenge, {
+  @ManyToOne(() => Reward, {
     onDelete: 'RESTRICT',
   })
-  challenge!: Challenge;
+  reward!: Reward;
 
   @Column({ type: 'int' })
-  pointsEarned!: number;
+  pointsSpent!: number;
 
-  @Column({ type: 'int' })
-  listenPercentage!: number;
+  @Column({
+    type: 'enum',
+    enum: RewardRedemptionStatus,
+    default: RewardRedemptionStatus.PENDING,
+  })
+  status!: RewardRedemptionStatus;
 
   @CreateDateColumn()
   createdAt!: Date;
