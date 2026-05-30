@@ -14,7 +14,8 @@ import { RewardRedemption } from './RewardRedemption';
 export class Reward {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
-
+  
+  @Index({ unique: true })
   @Column({ type: 'varchar', length: 150 })
   name!: string;
 

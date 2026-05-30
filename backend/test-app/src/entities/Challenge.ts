@@ -8,7 +8,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-   OneToMany,
+  OneToMany,
+   Unique,
 } from 'typeorm';
 
 import { ChallengeCompletion } from './ChallengeCompletion';
@@ -20,6 +21,7 @@ export enum ChallengeDifficulty {
 }
 
 @Entity('challenges')
+@Unique(['title', 'artist'])
 export class Challenge {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
