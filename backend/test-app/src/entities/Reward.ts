@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
+
+import { RewardRedemption } from './RewardRedemption';
 
 @Entity('rewards')
 export class Reward {
@@ -24,6 +27,9 @@ export class Reward {
   @Index()
   @Column({ type: 'boolean', default: true })
   available!: boolean;
+
+  @OneToMany(() => RewardRedemption, (redemption) => redemption.reward)
+redemptions!: RewardRedemption[];
 
   @CreateDateColumn()
   createdAt!: Date;

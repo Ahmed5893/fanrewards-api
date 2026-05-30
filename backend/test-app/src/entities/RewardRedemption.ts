@@ -28,12 +28,12 @@ export class RewardRedemption {
   @Column({ type: 'uuid' })
   rewardId!: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne(() => User,(user)=>user.rewardRedemptions, {
     onDelete: 'RESTRICT',
   })
   user!: User;
 
-  @ManyToOne(() => Reward, {
+  @ManyToOne(() => Reward,(reward)=>reward.redemptions, {
     onDelete: 'RESTRICT',
   })
   reward!: Reward;

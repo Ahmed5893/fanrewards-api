@@ -22,12 +22,12 @@ export class ChallengeCompletion {
   @Column({ type: 'uuid' })
   challengeId!: string;
 
-  @ManyToOne(() => User, {
+  @ManyToOne(() => User,(user)=>user.challengeCompletions, {
     onDelete: 'RESTRICT',
   })
   user!: User;
 
-  @ManyToOne(() => Challenge, {
+  @ManyToOne(() => Challenge,(challenge)=>challenge.completions, {
     onDelete: 'RESTRICT',
   })
   challenge!: Challenge;

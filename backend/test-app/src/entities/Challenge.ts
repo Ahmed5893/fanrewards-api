@@ -8,7 +8,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+   OneToMany,
 } from 'typeorm';
+
+import { ChallengeCompletion } from './ChallengeCompletion';
 
 export enum ChallengeDifficulty {
   EASY = 'easy',
@@ -46,6 +49,9 @@ export class Challenge {
   @Index()
   @Column({ type: 'boolean', default: true })
   active!: boolean;
+
+  @OneToMany(() => ChallengeCompletion, (completion) => completion.challenge)
+completions!: ChallengeCompletion[];
 
   @CreateDateColumn()
   createdAt!: Date;

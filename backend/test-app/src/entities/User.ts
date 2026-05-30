@@ -7,9 +7,13 @@ PrimaryGeneratedColumn,
 Column,
 CreateDateColumn,
 UpdateDateColumn,
-Index
+Index,
+OneToMany
 
 } from 'typeorm'
+
+import { ChallengeCompletion } from './ChallengeCompletion';
+import { RewardRedemption } from './RewardRedemption';
 
 @Entity('users')
 export class User{
@@ -31,6 +35,12 @@ export class User{
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   refreshTokenHash!: string | null;
+
+  @OneToMany(() => ChallengeCompletion, (completion) => completion.user)
+challengeCompletions!: ChallengeCompletion[];
+
+@OneToMany(() => RewardRedemption, (redemption) => redemption.user)
+rewardRedemptions!: RewardRedemption[];
 
   @CreateDateColumn()
   createdAt!: Date;
