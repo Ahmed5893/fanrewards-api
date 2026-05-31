@@ -103,7 +103,7 @@ export class AuthService{
 };
 
   }
-
+// Refresh Token rotation
   async refresh(refreshToken : string) : Promise<TokenPair>{
 
     const userRepository = this.db.getRepository(User);
@@ -145,18 +145,40 @@ export class AuthService{
      return tokens;
 
   }
-
-  async logout(userId : string) : Promise<void>{
+//Logout
+  async logout(refreshToken : string) : Promise<void>{
 
     const userRepository = this.db.getRepository(User);
-    const user = await userRepository.findOne({
-        where : {id : userId}
-    });
-    if(!user){
-        return;
-    }
-    user.refreshTokenHash = null;
-    await userRepository.save(user);
+    let payload: RefreshTokenPayload;
+
+  try {
+    payload = jwt.verify(
+      refreshToken,
+      config.jwt.refreshSecret,
+    ) as RefreshTokenPayload;
+  } catch {
+    throw new Error('INVALID_REFRESH_TOKEN');
+  }
+
+   const user = await userRepository.findOne({
+    where: { id: payload.userId },
+  });
+
+  if (!user || !user.refreshTokenHash) {
+    throw new Error('INVALID_REFRESH_TOKEN');
+  }
+
+   const tokenMatches = await bcrypt.compare(
+    refreshToken,
+    user.refreshTokenHash,
+  );
+
+  if (!tokenMatches) {
+    throw new Error('INVALID_REFRESH_TOKEN');
+  }
+
+  user.refreshTokenHash = null;
+  await userRepository.save(user);
 
   }
 
