@@ -146,6 +146,20 @@ export class AuthService{
 
   }
 
+  async logout(userId : string) : Promise<void>{
+
+    const userRepository = this.db.getRepository(User);
+    const user = await userRepository.findOne({
+        where : {id : userId}
+    });
+    if(!user){
+        return;
+    }
+    user.refreshTokenHash = null;
+    await userRepository.save(user);
+
+  }
+
   private generateTokenPair(userId : string): TokenPair {
     
     const accessOptions : SignOptions = {
