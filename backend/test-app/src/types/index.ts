@@ -1,9 +1,39 @@
-import { DataSource } from 'typeorm';
+import type { DataSource } from 'typeorm';
+
+export interface RegisterInput{
+ email:string;
+ password: string;
+ displayName: string;
+
+}
+
+export interface LoginInput {
+ email: string;
+ password: string;
+
+}
+
+export interface AuthUserResponse {
+ id:string;
+ email:string;
+ displayName:string,
+ totalPoints: number;
+ createdAt: string;
+ updatedAt: string;   
+
+}
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface AuthResponse {
+ user: AuthUserResponse;
+ tokens: TokenPair;
+
+}
+
 
 export interface PaginationOptions {
   page: number;

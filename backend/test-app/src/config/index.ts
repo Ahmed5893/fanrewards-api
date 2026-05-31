@@ -2,21 +2,31 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   logLevel: process.env.LOG_LEVEL || 'info',
 
   db: {
-    host: process.env.DB_HOST || 'localhost',
+    host: requiredEnv('DB_HOST'),
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || 'belong',
-    password: process.env.DB_PASSWORD || 'belong_dev',
-    database: process.env.DB_DATABASE || 'fan_rewards',
+    username: requiredEnv('DB_USERNAME'),
+    password: requiredEnv('DB_PASSWORD'),
+    database: requiredEnv('DB_DATABASE'),
   },
 
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'your-access-secret-change-me',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-change-me',
+    accessSecret: requiredEnv('JWT_ACCESS_SECRET'),
+    refreshSecret: requiredEnv('JWT_REFRESH_SECRET'),
     accessExpiresIn: '15m',
     refreshExpiresIn: '7d',
   },
