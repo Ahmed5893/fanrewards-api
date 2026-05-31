@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class Init1780159449648 implements MigrationInterface {
-    name = 'Init1780159449648'
+export class Init1780247233694 implements MigrationInterface {
+    name = 'Init1780247233694'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TYPE "public"."challenges_difficulty_enum" AS ENUM('easy', 'medium', 'hard')`);
@@ -18,7 +18,7 @@ export class Init1780159449648 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE "reward_redemptions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "rewardId" uuid NOT NULL, "pointsSpent" integer NOT NULL, "status" "public"."reward_redemptions_status_enum" NOT NULL DEFAULT 'pending', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e02d178fa8c54295d8edc8781b3" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE INDEX "IDX_5490172918e20aa466c63c9ac1" ON "reward_redemptions" ("userId") `);
         await queryRunner.query(`CREATE INDEX "IDX_7405900a3e5b2843630b0a83cb" ON "reward_redemptions" ("rewardId") `);
-        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying(255) NOT NULL, "passwordHash" character varying(255) NOT NULL, "displayName" character varying(100) NOT NULL, "totalPoints" integer NOT NULL DEFAULT '0', "refreshTokenHash" character varying(255), "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying(255) NOT NULL, "passwordHash" character varying(255) NOT NULL, "displayName" character varying(100) NOT NULL, "totalPoints" integer NOT NULL DEFAULT '0', "refreshTokenHash" character varying(255), "refreshTokenVersion" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE UNIQUE INDEX "IDX_97672ac88f789774dd47f7c8be" ON "users" ("email") `);
         await queryRunner.query(`ALTER TABLE "challenge_completions" ADD CONSTRAINT "FK_d4d11f8a530ef3b88b5e8161d23" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "challenge_completions" ADD CONSTRAINT "FK_da4132b85b217acdddb7878c20d" FOREIGN KEY ("challengeId") REFERENCES "challenges"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);

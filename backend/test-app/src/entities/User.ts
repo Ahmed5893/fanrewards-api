@@ -36,6 +36,9 @@ export class User{
   @Column({ type: 'varchar', length: 255, nullable: true })
   refreshTokenHash!: string | null;
 
+  @Column({ type: 'int', default: 0 })
+  refreshTokenVersion!: number;
+
   @OneToMany(() => ChallengeCompletion, (completion) => completion.user)
 challengeCompletions!: ChallengeCompletion[];
 
