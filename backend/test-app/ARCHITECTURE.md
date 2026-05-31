@@ -94,4 +94,6 @@ This means old refresh tokens are invalidated after use, reducing risk if a refr
 Logout invalidates refresh-based sessions by clearing the stored `refreshTokenHash` on the user record. This prevents the previous refresh token from being used to obtain new access tokens.
 
 ## Logout
-Access tokens remain stateless and short-lived, so logout focuses on invalidating the refresh token rather than storing server-side access token state.
+Logout invalidates refresh-based sessions by accepting the refresh token, verifying it, comparing it against the hashed refresh token stored in the database, and clearing `refreshTokenHash` on the user record.
+
+This keeps logout focused on invalidating the long-lived session token and allows logout to work even when the short-lived access token has expired.
