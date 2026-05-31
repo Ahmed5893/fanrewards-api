@@ -103,6 +103,49 @@ export class AuthService{
 };
 
   }
+
+  async refresh(refreshToken : string) : Promise<TokenPair>{
+
+    const userRepository = this.db.getRepository(User);
+    let payload : RefreshTokenPayload;
+    try {
+        payload = jwt.verify(
+            refreshToken,
+            config.jwt.refreshSecret
+        ) as RefreshTokenPayload
+        
+    } catch  {
+    
+        throw new Error('INVALID_REFRESH_TOKEN');
+    }
+    const user = await userRepository.findOne({
+        where : {id : payload.userId}
+    });
+        if (!user || !user.refreshTokenHash) {
+
+         throw new Error('INVALID_REFRESH_TOKEN');
+
+        }
+   const tokenMatches = await bcrypt.compare(
+    refreshToken,
+    user.refreshTokenHash,
+   );
+       if (!tokenMatches) {
+
+          throw new Error('INVALID_REFRESH_TOKEN');
+       }
+
+    const tokens = this.generateTokenPair(user.id);
+    user.refreshTokenHash = await bcrypt.hash(
+        tokens.refreshToken,
+        this.saltRounds
+    );
+     await userRepository.save(user);
+
+     return tokens;
+
+  }
+
   private generateTokenPair(userId : string): TokenPair {
     
     const accessOptions : SignOptions = {
