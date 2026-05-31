@@ -69,7 +69,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
                 })      
     }
   }
- )
+ );
 
  //Login route
  fastify.post<{Body : LoginBody}> (
@@ -106,6 +106,45 @@ export default async function authRoutes(fastify: FastifyInstance) {
         });
     }
   }
-)
+);
+
+//Refresh route
+  fastify.post<{ Body: RefreshBody }>(
+    '/refresh',
+    {
+      schema: {
+        body: RefreshBodySchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const tokens = await authService.refresh(request.body.refreshToken);
+
+        return reply.status(200).send({
+          data: {
+            tokens,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === 'INVALID_REFRESH_TOKEN') {
+          return reply.status(401).send({
+            error: {
+              code: 'INVALID_REFRESH_TOKEN',
+              message: 'Invalid refresh token',
+            },
+          });
+        }
+
+        request.log.error({ error }, 'Token refresh failed');
+
+        return reply.status(500).send({
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          },
+        });
+      }
+    },
+  );
   
 }
