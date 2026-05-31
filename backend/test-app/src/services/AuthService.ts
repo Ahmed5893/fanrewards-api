@@ -12,6 +12,7 @@ import { User } from "../entities/User";
 import {
   TokenPair,
   RegisterInput,
+  LoginInput,
   AuthResponse,
   AuthUserResponse,
 } from "../types";
@@ -22,7 +23,8 @@ interface RefreshTokenPayload extends JwtPayload {
 
 export class AuthService{
   private readonly saltRounds =12;
-  constructor(private readonly db : DataSource) {};
+
+  constructor(private readonly db : DataSource) {}
 
   //Register a User
 
@@ -59,6 +61,48 @@ export class AuthService{
   }
 
   }
+
+  //User Log In
+
+  async login(input :LoginInput) : Promise<AuthResponse>{
+
+    const userRepository = this.db.getRepository(User);
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const user = await userRepository.findOne({
+        where : {email : normalizedEmail}
+    });
+
+    if(!user) {
+
+    throw new Error('INVALID_CREDENTIALS');
+
+    };
+
+    const passwordMatches = await bcrypt.compare(
+            input.password,
+            user.passwordHash
+        );
+    if(!passwordMatches) {
+
+         throw new Error('INVALID_CREDENTIALS');
+
+        };
+
+    const tokens = this.generateTokenPair(user.id);
+    user.refreshTokenHash = await bcrypt.hash(
+       
+     tokens.refreshToken,
+     this.saltRounds   
+    );
+    await userRepository.save(user);
+
+    return {
+
+    user : this.toAuthUserResponse(user),
+    tokens,
+};
+
+  }
   private generateTokenPair(userId : string): TokenPair {
     
     const accessOptions : SignOptions = {
@@ -87,7 +131,7 @@ export class AuthService{
         refreshToken
     };
 
-  };
+  }
 
   private toAuthUserResponse(user : User): AuthUserResponse {
    
