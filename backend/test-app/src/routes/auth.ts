@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Type, Static } from '@sinclair/typebox';
+import { AuthService } from '../services/AuthService';
 
 const RegisterBodySchema = Type.Object({
 
@@ -28,23 +29,45 @@ type LoginBody = Static<typeof LoginBodySchema>;
 type RefreshBody = Static<typeof RefreshBodySchema>;
 type LogoutBody = Static<typeof LogoutBodySchema>;
 
-// TODO: Implement auth routes
-// POST /api/auth/register
-// POST /api/auth/login
-// POST /api/auth/refresh
-// POST /api/auth/logout
+
 
 export default async function authRoutes(fastify: FastifyInstance) {
-  void fastify;
-  // Register
-  // fastify.post('/register', { schema: { body: RegisterBody } }, async (request, reply) => { ... });
+//Register route
+ const authService = new AuthService(fastify.db);
+ fastify.post<{Body : RegisterBody}>(
+  '/register',
+  {
+    schema : {
+      body : RegisterBodySchema,
+    }
 
-  // Login
-  // fastify.post('/login', { schema: { body: LoginBody } }, async (request, reply) => { ... });
+  },
+  async (request,reply)=>{
+    try {
+        const result = await authService.register(request.body);
+                return reply.status(201).send({
+                data: result,
+        });
 
-  // Refresh
-  // fastify.post('/refresh', { schema: { body: RefreshBody } }, async (request, reply) => { ... });
+    } catch (error) {
+              if (error instanceof Error && error.message === 'EMAIL_ALREADY_EXISTS') {
+                 return reply.status(409).send({
+                error: {
+              code: 'EMAIL_ALREADY_EXISTS',
+              message: 'A user with this email already exists',
+            },
+                 })
+              }
+        request.log.error({ error }, 'Registration failed');
+                return reply.status(500).send({
+               error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          },
 
-  // Logout
-  // fastify.post('/logout', { schema: { body: LogoutBody } }, async (request, reply) => { ... });
+                })      
+    }
+  }
+ )
+  
 }
