@@ -85,3 +85,7 @@ User registration is handled in the auth service rather than directly inside the
 During registration, the API normalizes the email address, checks whether the email already exists, hashes the password with bcrypt, creates the user, generates an access token and refresh token, and stores only a hashed version of the refresh token.
 
 The registration response returns safe user fields and tokens. Sensitive fields such as `passwordHash` and `refreshTokenHash` are never returned in API responses.
+
+Refresh tokens use rotation. When a valid refresh token is used, the API verifies it, compares it with the hashed refresh token stored in the database, issues a new access/refresh token pair, and replaces the stored refresh token hash.
+
+This means old refresh tokens are invalidated after use, reducing risk if a refresh token is leaked or reused.
