@@ -93,7 +93,12 @@ This means old refresh tokens are invalidated after use, reducing risk if a refr
 
 Logout invalidates refresh-based sessions by clearing the stored `refreshTokenHash` on the user record. This prevents the previous refresh token from being used to obtain new access tokens.
 
+During manual testing, I noticed that hash-only refresh token rotation was not enough to clearly protect against repeated use of an older refresh token in all cases. I improved the design by adding a server-side `refreshTokenVersion` to the user record and including that version inside refresh token payloads.
+
+On each successful login, refresh, or logout, the version is incremented. A refresh token is only accepted if its embedded version matches the user's current `refreshTokenVersion` and its raw value matches the stored hashed refresh token. This makes old refresh tokens invalid after rotation and gives stronger protection against replay or concurrent refresh attempts.
+
 ## Logout
 Logout invalidates refresh-based sessions by accepting the refresh token, verifying it, comparing it against the hashed refresh token stored in the database, and clearing `refreshTokenHash` on the user record.
 
 This keeps logout focused on invalidating the long-lived session token and allows logout to work even when the short-lived access token has expired.
+Logout and Login also increments `refreshTokenVersion`, so any refresh token issued before logout is invalid even if its JWT signature has not expired.
