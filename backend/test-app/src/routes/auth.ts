@@ -146,5 +146,44 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
     },
   );
+
+  //Logout route
+    fastify.post<{ Body: LogoutBody }>(
+    '/logout',
+    {
+      schema: {
+        body: LogoutBodySchema,
+      },
+    },
+    async (request, reply) => {
+      try {
+        await authService.logout(request.body.refreshToken);
+
+        return reply.status(200).send({
+          data: {
+            message: 'Logged out successfully',
+          },
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === 'INVALID_REFRESH_TOKEN') {
+          return reply.status(401).send({
+            error: {
+              code: 'INVALID_REFRESH_TOKEN',
+              message: 'Invalid refresh token',
+            },
+          });
+        }
+
+        request.log.error({ error }, 'Logout failed');
+
+        return reply.status(500).send({
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          },
+        });
+      }
+    },
+  );
   
 }
