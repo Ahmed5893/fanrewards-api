@@ -62,3 +62,18 @@ Because Fastify plugins are encapsulated by default, the database plugin is wrap
 ## Health Check
 
 The `/health` endpoint returns API status and database connectivity status. It uses a lightweight `SELECT 1` query to verify the database connection.
+
+
+## Authentication Design
+
+Authentication is implemented with JWT access and refresh tokens.
+
+Access tokens are short-lived and are used to authenticate protected API requests. Refresh tokens are longer-lived and are used to obtain a new access token when the access token expires.
+
+Passwords are never stored in plain text. User passwords are hashed with bcrypt before being saved in the database.
+
+Refresh tokens are also not stored in plain text. The API stores a hash of the latest refresh token on the user record. This allows logout and refresh token invalidation without keeping raw tokens in the database.
+
+JWT secrets are required environment variables. The application fails fast if they are missing instead of falling back to public default secrets.
+
+The auth service is responsible for registration, login, token generation, refresh token validation, and logout. Route handlers remain thin and delegate business logic to the service layer.
