@@ -86,6 +86,12 @@ During registration, the API normalizes the email address, checks whether the em
 
 The registration response returns safe user fields and tokens. Sensitive fields such as `passwordHash` and `refreshTokenHash` are never returned in API responses.
 
+## Refresh 
 Refresh tokens use rotation. When a valid refresh token is used, the API verifies it, compares it with the hashed refresh token stored in the database, issues a new access/refresh token pair, and replaces the stored refresh token hash.
 
 This means old refresh tokens are invalidated after use, reducing risk if a refresh token is leaked or reused.
+
+Logout invalidates refresh-based sessions by clearing the stored `refreshTokenHash` on the user record. This prevents the previous refresh token from being used to obtain new access tokens.
+
+## Logout
+Access tokens remain stateless and short-lived, so logout focuses on invalidating the refresh token rather than storing server-side access token state.
