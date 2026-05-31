@@ -32,8 +32,9 @@ type LogoutBody = Static<typeof LogoutBodySchema>;
 
 
 export default async function authRoutes(fastify: FastifyInstance) {
-//Register route
  const authService = new AuthService(fastify.db);
+
+ //Register route
  fastify.post<{Body : RegisterBody}>(
   '/register',
   {
@@ -69,5 +70,42 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
   }
  )
+
+ //Login route
+ fastify.post<{Body : LoginBody}> (
+'/login',
+{
+    schema : {
+      body : LoginBodySchema,
+    }
+
+  },
+  async(request,reply)=>{
+
+    try {
+          const result = await authService.login(request.body);
+          return reply.status(200).send({
+          data: result,
+        });
+      
+    } catch (error) {
+          if (error instanceof Error && error.message === 'INVALID_CREDENTIALS') {
+          return reply.status(401).send({
+                        error: {
+              code: 'INVALID_CREDENTIALS',
+              message: 'Invalid email or password',
+            },
+          })
+              }
+         request.log.error({ error }, 'Login failed');
+          return reply.status(500).send({
+          error: {
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          },
+        });
+    }
+  }
+)
   
 }
