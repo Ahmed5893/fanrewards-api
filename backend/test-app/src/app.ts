@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { config } from "./config";
 import { dbPlugin } from "./plugins/db";
+import authRoutes from './routes/auth';
 
 const buildApp = async () => {
   const app = Fastify({
@@ -18,8 +19,7 @@ const buildApp = async () => {
   await app.register(dbPlugin);
 
   // TODO: Register auth middleware (see middleware/auth.ts)
-  // TODO: Register route plugins (see routes/)
-
+  await app.register(authRoutes, { prefix: '/api/auth' });
   // Health check
  app.get('/health', async (req) => {
   try {
