@@ -77,3 +77,11 @@ Refresh tokens are also not stored in plain text. The API stores a hash of the l
 JWT secrets are required environment variables. The application fails fast if they are missing instead of falling back to public default secrets.
 
 The auth service is responsible for registration, login, token generation, refresh token validation, and logout. Route handlers remain thin and delegate business logic to the service layer.
+
+### Registration
+
+User registration is handled in the auth service rather than directly inside the route handler. The route is responsible for receiving and validating the HTTP request, while the service handles the business logic.
+
+During registration, the API normalizes the email address, checks whether the email already exists, hashes the password with bcrypt, creates the user, generates an access token and refresh token, and stores only a hashed version of the refresh token.
+
+The registration response returns safe user fields and tokens. Sensitive fields such as `passwordHash` and `refreshTokenHash` are never returned in API responses.
