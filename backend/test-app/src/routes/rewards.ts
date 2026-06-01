@@ -1,6 +1,9 @@
 import { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth";
-import { RewardService } from "../services/RewardService";
+import {
+  RewardService,
+  InsufficientPointsError,
+} from "../services/RewardService";
 import { Type, Static } from "@sinclair/typebox";
 
 const RewardParamsSchema = Type.Object({
@@ -84,6 +87,15 @@ export default async function rewardRoutes(fastify: FastifyInstance) {
           data: result,
         });
       } catch (error) {
+        if (error instanceof InsufficientPointsError) {
+          return reply.status(422).send({
+            error: {
+              code: "INSUFFICIENT_POINTS",
+              message: `You need ${error.pointsNeeded} more points to redeem this reward`,
+            },
+          });
+        }
+        
         if (error instanceof Error && error.message === "REWARD_NOT_FOUND") {
           return reply.status(404).send({
             error: {
@@ -102,15 +114,6 @@ export default async function rewardRoutes(fastify: FastifyInstance) {
           });
         }
 
-        if (error instanceof Error && error.message === "INSUFFICIENT_POINTS") {
-          return reply.status(422).send({
-            error: {
-              code: "INSUFFICIENT_POINTS",
-              message: "You do not have enough points to redeem this reward",
-            },
-          });
-        }
-
         if (error instanceof Error && error.message === "USER_NOT_FOUND") {
           return reply.status(401).send({
             error: {
@@ -119,6 +122,7 @@ export default async function rewardRoutes(fastify: FastifyInstance) {
             },
           });
         }
+        
 
         request.log.error({ error }, "Reward redemption failed");
 
