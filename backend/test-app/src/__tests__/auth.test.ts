@@ -1,14 +1,14 @@
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
-import { buildApp } from '../app';
+import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
+import { FastifyInstance } from "fastify";
+import request from "supertest";
+import { buildApp } from "../app";
 
-describe('auth', () => {
+describe("auth", () => {
   let app: FastifyInstance;
 
   const email = `auth-${Date.now()}@example.com`;
-  const password = 'password123';
-  const displayName = 'Auth Test User';
+  const password = "password123";
+  const displayName = "Auth Test User";
 
   beforeAll(async () => {
     app = await buildApp();
@@ -18,10 +18,10 @@ describe('auth', () => {
   afterAll(async () => {
     await app.close();
   });
-
-  it('registers a user and returns tokens', async () => {
+  // Registers a new user and verifies safe response fields and token issuance
+  it("registers a user and returns tokens", async () => {
     const response = await request(app.server)
-      .post('/api/auth/register')
+      .post("/api/auth/register")
       .send({
         email,
         password,
@@ -45,10 +45,10 @@ describe('auth', () => {
     expect(response.body.data.user.passwordHash).toBeUndefined();
     expect(response.body.data.user.refreshTokenHash).toBeUndefined();
   });
-
-  it('rejects duplicate email registration', async () => {
+  // Ensures duplicate email registration returns a conflict error
+  it("rejects duplicate email registration", async () => {
     const response = await request(app.server)
-      .post('/api/auth/register')
+      .post("/api/auth/register")
       .send({
         email,
         password,
@@ -58,15 +58,15 @@ describe('auth', () => {
 
     expect(response.body).toEqual({
       error: {
-        code: 'EMAIL_ALREADY_EXISTS',
-        message: 'A user with this email already exists',
+        code: "EMAIL_ALREADY_EXISTS",
+        message: "A user with this email already exists",
       },
     });
   });
-
-  it('logs in and returns tokens', async () => {
+  // Verifies an existing user can log in and receive a fresh token pair
+  it("logs in and returns tokens", async () => {
     const response = await request(app.server)
-      .post('/api/auth/login')
+      .post("/api/auth/login")
       .send({
         email,
         password,
@@ -81,5 +81,23 @@ describe('auth', () => {
 
     expect(response.body.data.tokens.accessToken).toEqual(expect.any(String));
     expect(response.body.data.tokens.refreshToken).toEqual(expect.any(String));
+  });
+
+  // Ensures invalid credentials are rejected without revealing which field was wrong
+  it("rejects login with an invalid password", async () => {
+    const response = await request(app.server)
+      .post("/api/auth/login")
+      .send({
+        email,
+        password: "wrongpassword",
+      })
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: "INVALID_CREDENTIALS",
+        message: "Invalid email or password",
+      },
+    });
   });
 });
