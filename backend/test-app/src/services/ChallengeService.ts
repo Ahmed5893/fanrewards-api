@@ -5,6 +5,8 @@
 
 import { DataSource } from 'typeorm';
 import { Challenge, ChallengeDifficulty } from '../entities/Challenge';
+import { ChallengeCompletion } from '../entities/ChallengeCompletion';
+import { User } from '../entities/User';
 import { PaginatedResult } from '../types';
 
 export interface ChallengeResponse {
@@ -25,6 +27,29 @@ export interface ListChallengesOptions {
   limit: number;
   difficulty?: ChallengeDifficulty;
   active?: boolean;
+}
+
+export interface CompleteChallengeInput {
+  userId: string;
+  challengeId: string;
+  listenPercentage: number;
+}
+
+export interface ChallengeCompletionResponse {
+  id: string;
+  userId: string;
+  challengeId: string;
+  pointsEarned: number;
+  listenPercentage: number;
+  createdAt: string;
+}
+
+export interface CompleteChallengeResponse {
+  completion: ChallengeCompletionResponse;
+  challenge: ChallengeResponse;
+  user: {
+    totalPoints: number;
+  };
 }
 
 export class ChallengeService {
@@ -96,6 +121,85 @@ export class ChallengeService {
       active: challenge.active,
       createdAt: challenge.createdAt.toISOString(),
       updatedAt: challenge.updatedAt.toISOString(),
+    };
+  }
+//inserts challenge_completions row and  updates users.totalPoints
+    async complete(
+    input: CompleteChallengeInput,
+  ): Promise<CompleteChallengeResponse> {
+    return this.db.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+      const challengeRepository = manager.getRepository(Challenge);
+      const completionRepository = manager.getRepository(ChallengeCompletion);
+
+      const user = await userRepository.findOne({
+        where: { id: input.userId },
+      });
+
+      if (!user) {
+        throw new Error('USER_NOT_FOUND');
+      }
+
+      const challenge = await challengeRepository.findOne({
+        where: { id: input.challengeId },
+      });
+
+      if (!challenge) {
+        throw new Error('CHALLENGE_NOT_FOUND');
+      }
+
+      if (!challenge.active) {
+        throw new Error('CHALLENGE_INACTIVE');
+      }
+
+      const pointsEarned = this.calculatePointsEarned(
+        challenge.points,
+        input.listenPercentage,
+      );
+
+      const completion = completionRepository.create({
+        userId: user.id,
+        challengeId: challenge.id,
+        pointsEarned,
+        listenPercentage: input.listenPercentage,
+      });
+
+      const savedCompletion = await completionRepository.save(completion);
+
+      user.totalPoints += pointsEarned;
+      const updatedUser = await userRepository.save(user);
+
+      return {
+        completion: this.toCompletionResponse(savedCompletion),
+        challenge: this.toChallengeResponse(challenge),
+        user: {
+          totalPoints: updatedUser.totalPoints,
+        },
+      };
+    });
+  }
+
+  private calculatePointsEarned(
+    challengePoints: number,
+    listenPercentage: number,
+  ): number {
+    if (listenPercentage >= 80) {
+      return challengePoints;
+    }
+
+    return Math.floor((challengePoints * listenPercentage) / 100);
+  }
+
+  private toCompletionResponse(
+    completion: ChallengeCompletion,
+  ): ChallengeCompletionResponse {
+    return {
+      id: completion.id,
+      userId: completion.userId,
+      challengeId: completion.challengeId,
+      pointsEarned: completion.pointsEarned,
+      listenPercentage: completion.listenPercentage,
+      createdAt: completion.createdAt.toISOString(),
     };
   }
 }
