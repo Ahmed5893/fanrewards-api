@@ -161,3 +161,11 @@ The project uses Jest and Supertest for integration-style API tests. Tests build
 Tests use the separate `fan_rewards_test` PostgreSQL database from Docker Compose instead of the development database. This keeps automated test data isolated from manual development data.
 
 The current tests cover health checks, authentication flows, refresh token rotation, logout invalidation, protected route access, and a core business flow that completes a challenge, earns points, redeems a reward, checks redemption history, and verifies leaderboard rank.
+
+## Security Hardening
+
+CORS uses an environment-configured origin allowlist instead of allowing all browser origins. Requests without an `Origin` header are still allowed so curl, tests, health checks, and server-to-server calls continue to work.
+
+The API uses a global rate limit for baseline abuse protection and stricter limits on authentication routes. Auth endpoints are more sensitive to brute-force and token-abuse attempts, so their limits are configurable separately from the global API limit.
+
+Rate limit responses use the standard error envelope with `RATE_LIMIT_EXCEEDED`.
