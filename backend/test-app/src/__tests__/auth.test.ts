@@ -190,4 +190,44 @@ describe("auth", () => {
       },
     });
   });
+
+    // Ensures protected user profile route rejects requests without an access token
+  it('rejects profile access without an access token', async () => {
+    const response = await request(app.server)
+      .get('/api/users/me')
+      .expect(401);
+
+    expect(response.body).toEqual({
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Missing authorization header',
+      },
+    });
+  });
+
+  // Ensures a valid access token can access the authenticated user's profile
+  it('returns current user profile with a valid access token', async () => {
+    const loginResponse = await request(app.server)
+      .post('/api/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(200);
+
+    const accessToken = loginResponse.body.data.tokens.accessToken;
+
+    const profileResponse = await request(app.server)
+      .get('/api/users/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(profileResponse.body.data.user).toMatchObject({
+      email,
+      displayName,
+    });
+
+    expect(profileResponse.body.data.user.passwordHash).toBeUndefined();
+    expect(profileResponse.body.data.user.refreshTokenHash).toBeUndefined();
+  });
 });
