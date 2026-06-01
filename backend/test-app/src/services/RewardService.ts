@@ -29,6 +29,8 @@ export interface RewardRedemptionResponse {
   pointsSpent: number;
   status: RewardRedemptionStatus;
   createdAt: string;
+  reward?: RewardResponse;
+
 }
 
 export interface RedeemRewardResponse {
@@ -129,6 +131,24 @@ export class RewardService {
     };
   });
 }
+//Reward history
+async getHistory(userId: string): Promise<RewardRedemptionResponse[]> {
+  const redemptionRepository = this.db.getRepository(RewardRedemption);
+
+  const redemptions = await redemptionRepository.find({
+    where: { userId },
+    relations: {
+      reward: true,
+    },
+    order: {
+      createdAt: 'DESC',
+    },
+  });
+
+  return redemptions.map((redemption) =>
+    this.toRedemptionResponse(redemption),
+  );
+}
 
 private toRedemptionResponse(
   redemption: RewardRedemption,
@@ -140,6 +160,9 @@ private toRedemptionResponse(
     pointsSpent: redemption.pointsSpent,
     status: redemption.status,
     createdAt: redemption.createdAt.toISOString(),
+    reward: redemption.reward
+      ? this.toRewardResponse(redemption.reward)
+      : undefined,
   };
 }
 }
