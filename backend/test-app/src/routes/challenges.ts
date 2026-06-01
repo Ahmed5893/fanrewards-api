@@ -4,6 +4,7 @@ import {
   ChallengeDifficulty,
 } from '../entities/Challenge';
 import { ChallengeService } from '../services/ChallengeService';
+import { authenticate } from '../middleware/auth';
 
 const ListChallengesQuerySchema = Type.Object({
   page: Type.Optional(Type.Number({ minimum: 1 })),
@@ -32,6 +33,7 @@ export default async function challengeRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: ListChallengesQuery }>(
     '/',
     {
+      preHandler: authenticate,
       schema: {
         querystring: ListChallengesQuerySchema,
       },
@@ -52,6 +54,7 @@ export default async function challengeRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: ChallengeParams }>(
     '/:id',
     {
+      preHandler: authenticate,
       schema: {
         params: ChallengeParamsSchema,
       },
