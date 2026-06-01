@@ -18,7 +18,21 @@ const buildApp = async () => {
   });
 
   // Register plugins
-  await app.register(cors, { origin: true });
+  await app.register(cors, {
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (config.cors.origins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin not allowed by CORS"), false);
+    },
+  });
   await app.register(helmet);
   await app.register(dbPlugin);
 
@@ -48,7 +62,7 @@ const buildApp = async () => {
 
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(userRoutes, { prefix: "/api/users" });
-  await app.register(challengeRoutes, { prefix: '/api/challenges' });
+  await app.register(challengeRoutes, { prefix: "/api/challenges" });
   await app.register(rewardRoutes, { prefix: "/api/rewards" });
   await app.register(leaderboardRoutes, { prefix: "/api/leaderboard" });
 
