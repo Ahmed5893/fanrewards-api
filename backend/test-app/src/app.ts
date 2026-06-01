@@ -7,6 +7,7 @@ import { dbPlugin } from "./plugins/db";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/users";
 import challengeRoutes from "./routes/challenges";
+import rewardRoutes from "./routes/rewards";
 
 const buildApp = async () => {
   const app = Fastify({
@@ -47,6 +48,7 @@ const buildApp = async () => {
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(userRoutes, { prefix: "/api/users" });
   await app.register(challengeRoutes, { prefix: '/api/challenges' });
+  await app.register(rewardRoutes, { prefix: "/api/rewards" });
 
   // Health check
   app.get("/health", async (request, reply) => {
