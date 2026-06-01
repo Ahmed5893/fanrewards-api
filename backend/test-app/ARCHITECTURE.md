@@ -133,3 +133,11 @@ Challenge completion is handled in the service layer and requires authentication
 Points are awarded based on listen percentage. Listening to at least 80% of a challenge earns full points, while lower percentages earn proportional partial credit.
 
 Completion is executed inside a database transaction because it creates a `ChallengeCompletion` record and updates the user's `totalPoints`. This keeps the completion history and point balance consistent.
+
+## Reward Redemption
+
+Reward redemption is handled in the service layer and requires authentication. The route is responsible for validating the reward ID and identifying the authenticated user, while `RewardService` handles the business rules.
+
+A reward can only be redeemed if it exists, is available, and the user has enough points. When redemption succeeds, the API deducts points from the user's balance and creates a `RewardRedemption` record with `pending` status.
+
+The redemption flow uses a database transaction because it updates the user's `totalPoints` and inserts a redemption history record. The point deduction is performed with an atomic conditional update so the database only deducts points if the user still has enough points at update time. This avoids race conditions where two concurrent redemption requests could spend the same points twice.
