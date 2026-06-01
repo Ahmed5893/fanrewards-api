@@ -19,7 +19,7 @@ export interface UserRankResponse extends LeaderboardEntry {
 export class LeaderboardService {
   constructor(private readonly db: DataSource) {}
 
-  //Get TopFans
+  //getTopFans
   async getTopFans(
     page: number,
     limit: number,
@@ -51,6 +51,30 @@ export class LeaderboardService {
       },
     };
   }
+  //getUserRank
+  async getUserRank(userId: string): Promise<UserRankResponse | null> {
+  const userRepository = this.db.getRepository(User);
+
+  const rows = await userRepository
+    .createQueryBuilder("user")
+    .select("user.id", "userId")
+    .addSelect("user.displayName", "displayName")
+    .addSelect("user.totalPoints", "totalPoints")
+    .addSelect("RANK() OVER (ORDER BY user.totalPoints DESC)", "rank")
+    .getRawMany<RawLeaderboardRow>();
+
+  const totalUsers = rows.length;
+  const row = rows.find((candidate) => candidate.userId === userId);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...this.toLeaderboardEntry(row),
+    totalUsers,
+  };
+}
 
   private toLeaderboardEntry(row: RawLeaderboardRow): LeaderboardEntry {
     return {
