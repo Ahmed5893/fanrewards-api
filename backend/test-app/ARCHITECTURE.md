@@ -143,3 +143,5 @@ Reward redemption is handled in the service layer and requires authentication. T
 A reward can only be redeemed if it exists, is available, and the user has enough points. When redemption succeeds, the API deducts points from the user's balance and creates a `RewardRedemption` record with `pending` status.
 
 The redemption flow uses a database transaction because it updates the user's `totalPoints` and inserts a redemption history record. The point deduction is performed with an atomic conditional update so the database only deducts points if the user still has enough points at update time. This avoids race conditions where two concurrent redemption requests could spend the same points twice.
+
+`GET /api/rewards/history` returns the authenticated user's redemption history with reward details. This keeps redemption history separate from the reward catalog and allows the API to show what the user has spent points on without exposing other users' activity.
