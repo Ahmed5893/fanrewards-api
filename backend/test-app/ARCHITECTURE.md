@@ -153,3 +153,11 @@ The leaderboard ranks users by `totalPoints` and returns paginated results using
 Ranking uses database-level window functions with `RANK()` so users with the same point total share the same rank. A secondary ordering by creation time keeps the result order stable when points are tied.
 
 `GET /api/leaderboard/me` returns the authenticated user's current rank and total user count, allowing clients to show the user's position without fetching every leaderboard page.
+
+## Testing Strategy
+
+The project uses Jest and Supertest for integration-style API tests. Tests build the Fastify app directly with `buildApp()` instead of starting a real HTTP listener, which keeps tests fast while still exercising the registered plugins, routes, middleware, validation, and database access.
+
+Tests use the separate `fan_rewards_test` PostgreSQL database from Docker Compose instead of the development database. This keeps automated test data isolated from manual development data.
+
+The current tests cover health checks, authentication flows, refresh token rotation, logout invalidation, protected route access, and a core business flow that completes a challenge, earns points, redeems a reward, checks redemption history, and verifies leaderboard rank.
