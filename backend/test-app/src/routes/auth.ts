@@ -1,119 +1,122 @@
-import { FastifyInstance } from 'fastify';
-import { Type, Static } from '@sinclair/typebox';
-import { AuthService } from '../services/AuthService';
+import { FastifyInstance } from "fastify";
+import { Type, Static } from "@sinclair/typebox";
+import { AuthService } from "../services/AuthService";
+import { config } from "../config";
 
 const RegisterBodySchema = Type.Object({
-
-  email : Type.String({format : 'email'}),
-  password : Type.String({minLength : 8}),
-  displayName : Type.String({minLength : 3, maxLength : 100}),
-
+  email: Type.String({ format: "email" }),
+  password: Type.String({ minLength: 8 }),
+  displayName: Type.String({ minLength: 3, maxLength: 100 }),
 });
 const LoginBodySchema = Type.Object({
-
-  email : Type.String({format : 'email'}),
-  password : Type.String({minLength : 1}),
-
+  email: Type.String({ format: "email" }),
+  password: Type.String({ minLength: 1 }),
 });
 const RefreshBodySchema = Type.Object({
-
-    refreshToken: Type.String({ minLength: 1 }),
-});
-const LogoutBodySchema = Type.Object({
-      
   refreshToken: Type.String({ minLength: 1 }),
 });
+const LogoutBodySchema = Type.Object({
+  refreshToken: Type.String({ minLength: 1 }),
+});
+const authRateLimit = {
+  max: config.rateLimit.authMax,
+  timeWindow: config.rateLimit.authTimeWindow,
+};
 
 type RegisterBody = Static<typeof RegisterBodySchema>;
 type LoginBody = Static<typeof LoginBodySchema>;
 type RefreshBody = Static<typeof RefreshBodySchema>;
 type LogoutBody = Static<typeof LogoutBodySchema>;
 
-
-
 export default async function authRoutes(fastify: FastifyInstance) {
- const authService = new AuthService(fastify.db);
+  const authService = new AuthService(fastify.db);
 
- //Register route
- fastify.post<{Body : RegisterBody}>(
-  '/register',
-  {
-    schema : {
-      body : RegisterBodySchema,
-    }
-
-  },
-  async (request,reply)=>{
-    try {
+  //Register route
+  fastify.post<{ Body: RegisterBody }>(
+    "/register",
+    {
+      schema: {
+        body: RegisterBodySchema,
+      },
+      config: {
+        rateLimit: authRateLimit,
+      },
+    },
+    async (request, reply) => {
+      try {
         const result = await authService.register(request.body);
-                return reply.status(201).send({
-                data: result,
-        });
-
-    } catch (error) {
-              if (error instanceof Error && error.message === 'EMAIL_ALREADY_EXISTS') {
-                 return reply.status(409).send({
-                error: {
-              code: 'EMAIL_ALREADY_EXISTS',
-              message: 'A user with this email already exists',
-            },
-                 })
-              }
-        request.log.error({ error }, 'Registration failed');
-                return reply.status(500).send({
-               error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Something went wrong',
-          },
-
-                })      
-    }
-  }
- );
-
- //Login route
- fastify.post<{Body : LoginBody}> (
-'/login',
-{
-    schema : {
-      body : LoginBodySchema,
-    }
-
-  },
-  async(request,reply)=>{
-
-    try {
-          const result = await authService.login(request.body);
-          return reply.status(200).send({
+        return reply.status(201).send({
           data: result,
         });
-      
-    } catch (error) {
-          if (error instanceof Error && error.message === 'INVALID_CREDENTIALS') {
-          return reply.status(401).send({
-                        error: {
-              code: 'INVALID_CREDENTIALS',
-              message: 'Invalid email or password',
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "EMAIL_ALREADY_EXISTS"
+        ) {
+          return reply.status(409).send({
+            error: {
+              code: "EMAIL_ALREADY_EXISTS",
+              message: "A user with this email already exists",
             },
-          })
-              }
-         request.log.error({ error }, 'Login failed');
-          return reply.status(500).send({
+          });
+        }
+        request.log.error({ error }, "Registration failed");
+        return reply.status(500).send({
           error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Something went wrong',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
           },
         });
-    }
-  }
-);
+      }
+    },
+  );
 
-//Refresh route
+  //Login route
+  fastify.post<{ Body: LoginBody }>(
+    "/login",
+    {
+      schema: {
+        body: LoginBodySchema,
+      },
+      config: {
+        rateLimit: authRateLimit,
+      },
+    },
+    async (request, reply) => {
+      try {
+        const result = await authService.login(request.body);
+        return reply.status(200).send({
+          data: result,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "INVALID_CREDENTIALS") {
+          return reply.status(401).send({
+            error: {
+              code: "INVALID_CREDENTIALS",
+              message: "Invalid email or password",
+            },
+          });
+        }
+        request.log.error({ error }, "Login failed");
+        return reply.status(500).send({
+          error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
+          },
+        });
+      }
+    },
+  );
+
+  //Refresh route
   fastify.post<{ Body: RefreshBody }>(
-    '/refresh',
+    "/refresh",
     {
       schema: {
         body: RefreshBodySchema,
+      },
+      config: {
+        rateLimit: authRateLimit,
       },
     },
     async (request, reply) => {
@@ -126,21 +129,24 @@ export default async function authRoutes(fastify: FastifyInstance) {
           },
         });
       } catch (error) {
-        if (error instanceof Error && error.message === 'INVALID_REFRESH_TOKEN') {
+        if (
+          error instanceof Error &&
+          error.message === "INVALID_REFRESH_TOKEN"
+        ) {
           return reply.status(401).send({
             error: {
-              code: 'INVALID_REFRESH_TOKEN',
-              message: 'Invalid refresh token',
+              code: "INVALID_REFRESH_TOKEN",
+              message: "Invalid refresh token",
             },
           });
         }
 
-        request.log.error({ error }, 'Token refresh failed');
+        request.log.error({ error }, "Token refresh failed");
 
         return reply.status(500).send({
           error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Something went wrong',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
           },
         });
       }
@@ -148,11 +154,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
   );
 
   //Logout route
-    fastify.post<{ Body: LogoutBody }>(
-    '/logout',
+  fastify.post<{ Body: LogoutBody }>(
+    "/logout",
     {
       schema: {
         body: LogoutBodySchema,
+      },
+      config: {
+        rateLimit: authRateLimit,
       },
     },
     async (request, reply) => {
@@ -161,29 +170,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
         return reply.status(200).send({
           data: {
-            message: 'Logged out successfully',
+            message: "Logged out successfully",
           },
         });
       } catch (error) {
-        if (error instanceof Error && error.message === 'INVALID_REFRESH_TOKEN') {
+        if (
+          error instanceof Error &&
+          error.message === "INVALID_REFRESH_TOKEN"
+        ) {
           return reply.status(401).send({
             error: {
-              code: 'INVALID_REFRESH_TOKEN',
-              message: 'Invalid refresh token',
+              code: "INVALID_REFRESH_TOKEN",
+              message: "Invalid refresh token",
             },
           });
         }
 
-        request.log.error({ error }, 'Logout failed');
+        request.log.error({ error }, "Logout failed");
 
         return reply.status(500).send({
           error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Something went wrong',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
           },
         });
       }
     },
   );
-  
 }

@@ -47,4 +47,11 @@ export const config = {
     accessExpiresIn: "15m",
     refreshExpiresIn: "7d",
   },
+
+  rateLimit: {
+    globalMax: parseInt(process.env.RATE_LIMIT_GLOBAL_MAX || "300", 10),
+    globalTimeWindow: process.env.RATE_LIMIT_GLOBAL_WINDOW || "1 minute",
+    authMax: parseInt(process.env.RATE_LIMIT_AUTH_MAX || "10", 10),
+    authTimeWindow: process.env.RATE_LIMIT_AUTH_WINDOW || "1 minute",
+  },
 };

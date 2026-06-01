@@ -2,6 +2,7 @@ import "reflect-metadata";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import rateLimit from '@fastify/rate-limit';
 import { config } from "./config";
 import { dbPlugin } from "./plugins/db";
 import authRoutes from "./routes/auth";
@@ -34,6 +35,19 @@ const buildApp = async () => {
     },
   });
   await app.register(helmet);
+  await app.register(rateLimit, {
+  global: true,
+  max: config.rateLimit.globalMax,
+  timeWindow: config.rateLimit.globalTimeWindow,
+  errorResponseBuilder: (_request, context) => ({
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: `Rate limit exceeded. Try again in ${Math.ceil(
+        context.ttl / 1000,
+      )} seconds`,
+    },
+  }),
+});
   await app.register(dbPlugin);
 
   //global error handler
