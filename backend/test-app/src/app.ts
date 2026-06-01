@@ -4,8 +4,8 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { config } from "./config";
 import { dbPlugin } from "./plugins/db";
-import authRoutes from './routes/auth';
-import userRoutes from './routes/users';
+import authRoutes from "./routes/auth";
+import userRoutes from "./routes/users";
 
 const buildApp = async () => {
   const app = Fastify({
@@ -19,27 +19,51 @@ const buildApp = async () => {
   await app.register(helmet);
   await app.register(dbPlugin);
 
-  // TODO: Register auth middleware (see middleware/auth.ts)
-  await app.register(authRoutes, { prefix: '/api/auth' });
-  await app.register(userRoutes, { prefix: '/api/users' });
+  //global error handler
+  app.setErrorHandler((error, request, reply) => {
+    if (error.validation) {
+      return reply.status(400).send({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: error.message,
+        },
+      });
+    }
+
+    request.log.error({ error }, "Unhandled error");
+
+    return reply.status(500).send({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          config.nodeEnv === "production"
+            ? "Something went wrong"
+            : error.message,
+      },
+    });
+  });
+
+  await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(userRoutes, { prefix: "/api/users" });
+
   // Health check
- app.get('/health', async (req) => {
-  try {
-    await req.server.db.query('SELECT 1');
+  app.get("/health", async (request, reply) => {
+    try {
+      await request.server.db.query("SELECT 1");
 
-    return {
-      status: 'ok',
-      database: 'connected',
-    };
-  } catch (err) {
-    req.log.error({ err }, 'Database health check failed');
+      return reply.status(200).send({
+        status: "ok",
+        database: "connected",
+      });
+    } catch (error) {
+      request.log.error({ error }, "Database health check failed");
 
-    return {
-      status: 'ok',
-      database: 'unavailable',
-    };
-  }
-});
+      return reply.status(503).send({
+        status: "degraded",
+        database: "unavailable",
+      });
+    }
+  });
 
   return app;
 };
@@ -47,9 +71,17 @@ const buildApp = async () => {
 const start = async () => {
   const app = await buildApp();
 
+  const shutdown = async (signal: string) => {
+    app.log.info(`${signal} received, shutting down`);
+    await app.close();
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
   try {
     await app.listen({ port: config.port, host: "0.0.0.0" });
-    app.log.info(`Server running on http://localhost:${config.port}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

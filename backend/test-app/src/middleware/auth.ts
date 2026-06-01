@@ -26,7 +26,7 @@ export async function authenticate(
 
   const [scheme, token] = authorizationHeader.split(' ');
 
-  if (scheme !== 'Bearer' || !token) {
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
     return reply.status(401).send({
       error: {
         code: 'UNAUTHORIZED',
