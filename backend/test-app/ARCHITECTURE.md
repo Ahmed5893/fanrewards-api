@@ -145,3 +145,11 @@ A reward can only be redeemed if it exists, is available, and the user has enoug
 The redemption flow uses a database transaction because it updates the user's `totalPoints` and inserts a redemption history record. The point deduction is performed with an atomic conditional update so the database only deducts points if the user still has enough points at update time. This avoids race conditions where two concurrent redemption requests could spend the same points twice.
 
 `GET /api/rewards/history` returns the authenticated user's redemption history with reward details. This keeps redemption history separate from the reward catalog and allows the API to show what the user has spent points on without exposing other users' activity.
+
+## Leaderboard
+
+The leaderboard ranks users by `totalPoints` and returns paginated results using the standard `{ data, meta }` response envelope.
+
+Ranking uses database-level window functions with `RANK()` so users with the same point total share the same rank. A secondary ordering by creation time keeps the result order stable when points are tied.
+
+`GET /api/leaderboard/me` returns the authenticated user's current rank and total user count, allowing clients to show the user's position without fetching every leaderboard page.
