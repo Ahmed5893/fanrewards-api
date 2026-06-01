@@ -100,4 +100,60 @@ describe("auth", () => {
       },
     });
   });
+    // Verifies a valid refresh token returns a new token pair
+  it('refreshes tokens with a valid refresh token', async () => {
+    const loginResponse = await request(app.server)
+      .post('/api/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(200);
+
+    const refreshToken = loginResponse.body.data.tokens.refreshToken;
+
+    const refreshResponse = await request(app.server)
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken,
+      })
+      .expect(200);
+
+    expect(refreshResponse.body.data.tokens.accessToken).toEqual(expect.any(String));
+    expect(refreshResponse.body.data.tokens.refreshToken).toEqual(expect.any(String));
+  });
+
+  // Ensures refresh token rotation rejects a refresh token after it has already been used
+  it('rejects an old refresh token after rotation', async () => {
+    const loginResponse = await request(app.server)
+      .post('/api/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(200);
+
+    const oldRefreshToken = loginResponse.body.data.tokens.refreshToken;
+
+    await request(app.server)
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken: oldRefreshToken,
+      })
+      .expect(200);
+
+    const oldTokenResponse = await request(app.server)
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken: oldRefreshToken,
+      })
+      .expect(401);
+
+    expect(oldTokenResponse.body).toEqual({
+      error: {
+        code: 'INVALID_REFRESH_TOKEN',
+        message: 'Invalid refresh token',
+      },
+    });
+  });
 });
