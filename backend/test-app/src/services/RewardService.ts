@@ -5,6 +5,12 @@
 
 import { DataSource } from 'typeorm';
 import { Reward } from '../entities/Reward';
+import { User } from '../entities/User';
+import {
+  RewardRedemption,
+  RewardRedemptionStatus,
+} from '../entities/RewardRedemption';
+
 
 export interface RewardResponse {
   id: string;
@@ -16,6 +22,23 @@ export interface RewardResponse {
   updatedAt: string;
 }
 
+export interface RewardRedemptionResponse {
+  id: string;
+  userId: string;
+  rewardId: string;
+  pointsSpent: number;
+  status: RewardRedemptionStatus;
+  createdAt: string;
+}
+
+export interface RedeemRewardResponse {
+  redemption: RewardRedemptionResponse;
+  reward: RewardResponse;
+  user: {
+    totalPoints: number;
+  };
+}
+//Get rewards list
 export class RewardService {
   constructor(private readonly db: DataSource) {}
 
@@ -45,4 +68,78 @@ export class RewardService {
       updatedAt: reward.updatedAt.toISOString(),
     };
   }
+  
+  //reward redeem
+  async redeem(userId: string, rewardId: string): Promise<RedeemRewardResponse> {
+  return this.db.transaction(async (manager) => {
+    const rewardRepository = manager.getRepository(Reward);
+    const redemptionRepository = manager.getRepository(RewardRedemption);
+
+    const reward = await rewardRepository.findOne({
+      where: { id: rewardId },
+    });
+
+    if (!reward) {
+      throw new Error('REWARD_NOT_FOUND');
+    }
+
+    if (!reward.available) {
+      throw new Error('REWARD_UNAVAILABLE');
+    }
+
+    const updateResult = await manager
+      .createQueryBuilder()
+      .update(User)
+      .set({
+        totalPoints: () => `"totalPoints" - ${reward.pointsCost}`,
+      })
+      .where('id = :userId', { userId })
+      .andWhere('"totalPoints" >= :pointsCost', {
+        pointsCost: reward.pointsCost,
+      })
+      .execute();
+
+    if (!updateResult.affected) {
+      throw new Error('INSUFFICIENT_POINTS');
+    }
+
+    const redemption = redemptionRepository.create({
+      userId,
+      rewardId: reward.id,
+      pointsSpent: reward.pointsCost,
+      status: RewardRedemptionStatus.PENDING,
+    });
+
+    const savedRedemption = await redemptionRepository.save(redemption);
+
+    const updatedUser = await manager.findOne(User, {
+      where: { id: userId },
+    });
+
+    if (!updatedUser) {
+      throw new Error('USER_NOT_FOUND');
+    }
+
+    return {
+      redemption: this.toRedemptionResponse(savedRedemption),
+      reward: this.toRewardResponse(reward),
+      user: {
+        totalPoints: updatedUser.totalPoints,
+      },
+    };
+  });
+}
+
+private toRedemptionResponse(
+  redemption: RewardRedemption,
+): RewardRedemptionResponse {
+  return {
+    id: redemption.id,
+    userId: redemption.userId,
+    rewardId: redemption.rewardId,
+    pointsSpent: redemption.pointsSpent,
+    status: redemption.status,
+    createdAt: redemption.createdAt.toISOString(),
+  };
+}
 }
