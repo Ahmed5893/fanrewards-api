@@ -125,3 +125,11 @@ Changing email would require additional protections such as password confirmatio
 `GET /api/users/me/stats` returns a lightweight summary for the authenticated user, including current point balance, completed challenge count, and redeemed reward count.
 
 The endpoint returns aggregate counts instead of full completion/redemption history to keep the profile summary small and focused. Detailed history can be exposed later through separate paginated endpoints.
+
+## Challenge Completion
+
+Challenge completion is handled in the service layer and requires authentication. The route validates the challenge ID and listen percentage before delegating to `ChallengeService`.
+
+Points are awarded based on listen percentage. Listening to at least 80% of a challenge earns full points, while lower percentages earn proportional partial credit.
+
+Completion is executed inside a database transaction because it creates a `ChallengeCompletion` record and updates the user's `totalPoints`. This keeps the completion history and point balance consistent.
