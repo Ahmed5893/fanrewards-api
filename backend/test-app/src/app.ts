@@ -2,7 +2,7 @@ import "reflect-metadata";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
-import rateLimit from '@fastify/rate-limit';
+import rateLimit from "@fastify/rate-limit";
 import { config } from "./config";
 import { dbPlugin } from "./plugins/db";
 import authRoutes from "./routes/auth";
@@ -35,13 +35,15 @@ const buildApp = async () => {
     },
   });
   await app.register(helmet);
+
   await app.register(rateLimit, {
   global: true,
   max: config.rateLimit.globalMax,
   timeWindow: config.rateLimit.globalTimeWindow,
   errorResponseBuilder: (_request, context) => ({
+    statusCode: 429,
     error: {
-      code: 'RATE_LIMIT_EXCEEDED',
+      code: "RATE_LIMIT_EXCEEDED",
       message: `Rate limit exceeded. Try again in ${Math.ceil(
         context.ttl / 1000,
       )} seconds`,
@@ -51,28 +53,40 @@ const buildApp = async () => {
   await app.register(dbPlugin);
 
   //global error handler
-  app.setErrorHandler((error, request, reply) => {
-    if (error.validation) {
-      return reply.status(400).send({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: error.message,
-        },
-      });
-    }
-
-    request.log.error({ error }, "Unhandled error");
-
-    return reply.status(500).send({
+ app.setErrorHandler((error, request, reply) => {
+  if (error.validation) {
+    return reply.status(400).send({
       error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message:
-          config.nodeEnv === "production"
-            ? "Something went wrong"
-            : error.message,
+        code: "VALIDATION_ERROR",
+        message: error.message,
       },
     });
+  }
+  if (
+  error.statusCode === 429 ||
+  error.code === "FST_ERR_RATE_LIMIT" ||
+  error.code === "RATE_LIMIT_EXCEEDED"
+) {
+  return reply.status(429).send({
+    error: {
+      code: "RATE_LIMIT_EXCEEDED",
+      message: error.message || "Rate limit exceeded. Please try again later",
+    },
   });
+}
+
+  request.log.error({ error }, "Unhandled error");
+
+  return reply.status(500).send({
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        config.nodeEnv === "production"
+          ? "Something went wrong"
+          : error.message,
+    },
+  });
+});
 
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(userRoutes, { prefix: "/api/users" });
