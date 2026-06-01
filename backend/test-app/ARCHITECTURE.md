@@ -105,3 +105,11 @@ Logout and Login also increments `refreshTokenVersion`, so any refresh token iss
 ## Future Improvements
 
 Password reset is intentionally left out of the MVP because a secure implementation requires one-time reset tokens, token expiry, email delivery, rate limiting, and session invalidation after password change. In production, I would implement a `password_reset_tokens` table or equivalent secure token store, send reset links through a trusted email provider, hash stored reset tokens, expire them quickly, and increment `refreshTokenVersion` after a successful reset to invalidate existing refresh sessions.
+
+## Operational Concerns
+
+The application uses a global Fastify error handler to keep error responses consistent with the API response envelope. Validation errors are returned as `400` responses with a `VALIDATION_ERROR` code.
+
+The health check verifies database connectivity with a lightweight `SELECT 1` query. If the database is unavailable, the API returns `503` with a degraded status because PostgreSQL is a required dependency.
+
+The application handles `SIGINT` and `SIGTERM` for graceful shutdown. On shutdown, Fastify is closed so plugin cleanup hooks can run, including closing the TypeORM database connection.
