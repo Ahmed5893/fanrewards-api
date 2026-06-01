@@ -156,4 +156,38 @@ describe("auth", () => {
       },
     });
   });
+
+    // Verifies logout invalidates the current refresh token
+  it('invalidates refresh token on logout', async () => {
+    const loginResponse = await request(app.server)
+      .post('/api/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(200);
+
+    const refreshToken = loginResponse.body.data.tokens.refreshToken;
+
+    await request(app.server)
+      .post('/api/auth/logout')
+      .send({
+        refreshToken,
+      })
+      .expect(200);
+
+    const refreshAfterLogoutResponse = await request(app.server)
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken,
+      })
+      .expect(401);
+
+    expect(refreshAfterLogoutResponse.body).toEqual({
+      error: {
+        code: 'INVALID_REFRESH_TOKEN',
+        message: 'Invalid refresh token',
+      },
+    });
+  });
 });
