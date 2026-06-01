@@ -121,3 +121,7 @@ The application handles `SIGINT` and `SIGTERM` for graceful shutdown. On shutdow
 `PATCH /api/users/me` is intentionally limited to updating `displayName`. Email and password changes are security-sensitive flows and should not be mixed into a generic profile update endpoint.
 
 Changing email would require additional protections such as password confirmation, uniqueness checks, and email verification. Changing password would require current-password verification, password hashing, and refresh-session invalidation. These can be implemented as separate dedicated flows if needed.
+
+`GET /api/users/me/stats` returns a lightweight summary for the authenticated user, including current point balance, completed challenge count, and redeemed reward count.
+
+The endpoint returns aggregate counts instead of full completion/redemption history to keep the profile summary small and focused. Detailed history can be exposed later through separate paginated endpoints.
