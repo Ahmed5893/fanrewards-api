@@ -3,11 +3,11 @@
 // - getById: return a single challenge
 // - complete: record a completion and award points based on listen duration
 
-import { DataSource } from 'typeorm';
-import { Challenge, ChallengeDifficulty } from '../entities/Challenge';
-import { ChallengeCompletion } from '../entities/ChallengeCompletion';
-import { User } from '../entities/User';
-import { PaginatedResult } from '../types';
+import { DataSource } from "typeorm";
+import { Challenge, ChallengeDifficulty } from "../entities/Challenge";
+import { ChallengeCompletion } from "../entities/ChallengeCompletion";
+import { User } from "../entities/User";
+import { PaginatedResult } from "../types";
 
 export interface ChallengeResponse {
   id: string;
@@ -65,19 +65,19 @@ export class ChallengeService {
     const challengeRepository = this.db.getRepository(Challenge);
 
     const query = challengeRepository
-      .createQueryBuilder('challenge')
-      .orderBy('challenge.createdAt', 'DESC')
+      .createQueryBuilder("challenge")
+      .orderBy("challenge.createdAt", "DESC")
       .skip(skip)
       .take(limit);
 
     if (options.difficulty) {
-      query.andWhere('challenge.difficulty = :difficulty', {
+      query.andWhere("challenge.difficulty = :difficulty", {
         difficulty: options.difficulty,
       });
     }
 
-    if (typeof options.active === 'boolean') {
-      query.andWhere('challenge.active = :active', {
+    if (typeof options.active === "boolean") {
+      query.andWhere("challenge.active = :active", {
         active: options.active,
       });
     }
@@ -94,7 +94,7 @@ export class ChallengeService {
       },
     };
   }
-//Get challenge by ID
+  //Get challenge by ID
   async getById(id: string): Promise<ChallengeResponse | null> {
     const challengeRepository = this.db.getRepository(Challenge);
 
@@ -123,11 +123,14 @@ export class ChallengeService {
       updatedAt: challenge.updatedAt.toISOString(),
     };
   }
-//inserts challenge_completions row and  updates users.totalPoints
-    async complete(
+  //inserts challenge_completions row and  updates users.totalPoints
+  async complete(
     input: CompleteChallengeInput,
   ): Promise<CompleteChallengeResponse> {
-    return this.db.transaction(async (manager) => {
+    if (input.listenPercentage < 0 || input.listenPercentage > 100) {
+      throw new Error("INVALID_LISTEN_PERCENTAGE");
+    }
+      return this.db.transaction(async (manager) => {
       const userRepository = manager.getRepository(User);
       const challengeRepository = manager.getRepository(Challenge);
       const completionRepository = manager.getRepository(ChallengeCompletion);
@@ -137,7 +140,7 @@ export class ChallengeService {
       });
 
       if (!user) {
-        throw new Error('USER_NOT_FOUND');
+        throw new Error("USER_NOT_FOUND");
       }
 
       const challenge = await challengeRepository.findOne({
@@ -145,11 +148,11 @@ export class ChallengeService {
       });
 
       if (!challenge) {
-        throw new Error('CHALLENGE_NOT_FOUND');
+        throw new Error("CHALLENGE_NOT_FOUND");
       }
 
       if (!challenge.active) {
-        throw new Error('CHALLENGE_INACTIVE');
+        throw new Error("CHALLENGE_INACTIVE");
       }
 
       const pointsEarned = this.calculatePointsEarned(
@@ -166,8 +169,22 @@ export class ChallengeService {
 
       const savedCompletion = await completionRepository.save(completion);
 
-      user.totalPoints += pointsEarned;
-      const updatedUser = await userRepository.save(user);
+      await manager
+        .createQueryBuilder()
+        .update(User)
+        .set({
+          totalPoints: () => `"totalPoints" + ${pointsEarned}`,
+        })
+        .where("id = :userId", { userId: input.userId })
+        .execute();
+
+      const updatedUser = await manager.findOne(User, {
+        where: { id: input.userId },
+      });
+
+      if (!updatedUser) {
+        throw new Error("USER_NOT_FOUND");
+      }
 
       return {
         completion: this.toCompletionResponse(savedCompletion),
