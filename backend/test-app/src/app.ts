@@ -18,7 +18,7 @@ const buildApp = async () => {
     },
   });
 
-  // Register plugins
+  // Security and request protection plugins
   await app.register(cors, {
     origin: (origin, callback) => {
       if (!origin) {
@@ -36,58 +36,62 @@ const buildApp = async () => {
   });
   await app.register(helmet);
 
+  // Global rate limit to protect the API from too many requests
   await app.register(rateLimit, {
-  global: true,
-  max: config.rateLimit.globalMax,
-  timeWindow: config.rateLimit.globalTimeWindow,
-  errorResponseBuilder: (_request, context) => ({
-    statusCode: 429,
-    error: {
-      code: "RATE_LIMIT_EXCEEDED",
-      message: `Rate limit exceeded. Try again in ${Math.ceil(
-        context.ttl / 1000,
-      )} seconds`,
-    },
-  }),
-});
+    global: true,
+    max: config.rateLimit.globalMax,
+    timeWindow: config.rateLimit.globalTimeWindow,
+    errorResponseBuilder: (_request, context) => ({
+      statusCode: 429,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: `Rate limit exceeded. Try again in ${Math.ceil(
+          context.ttl / 1000,
+        )} seconds`,
+      },
+    }),
+  });
+
+  // Global rate limit to protect the API from too many requests
   await app.register(dbPlugin);
 
   //global error handler
- app.setErrorHandler((error, request, reply) => {
-  if (error.validation) {
-    return reply.status(400).send({
+  app.setErrorHandler((error, request, reply) => {
+    if (error.validation) {
+      return reply.status(400).send({
+        error: {
+          code: "VALIDATION_ERROR",
+          message: error.message,
+        },
+      });
+    }
+    if (
+      error.statusCode === 429 ||
+      error.code === "FST_ERR_RATE_LIMIT" ||
+      error.code === "RATE_LIMIT_EXCEEDED"
+    ) {
+      return reply.status(429).send({
+        error: {
+          code: "RATE_LIMIT_EXCEEDED",
+          message:
+            error.message || "Rate limit exceeded. Please try again later",
+        },
+      });
+    }
+
+    request.log.error({ error }, "Unhandled error");
+
+    return reply.status(500).send({
       error: {
-        code: "VALIDATION_ERROR",
-        message: error.message,
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          config.nodeEnv === "production"
+            ? "Something went wrong"
+            : error.message,
       },
     });
-  }
-  if (
-  error.statusCode === 429 ||
-  error.code === "FST_ERR_RATE_LIMIT" ||
-  error.code === "RATE_LIMIT_EXCEEDED"
-) {
-  return reply.status(429).send({
-    error: {
-      code: "RATE_LIMIT_EXCEEDED",
-      message: error.message || "Rate limit exceeded. Please try again later",
-    },
   });
-}
-
-  request.log.error({ error }, "Unhandled error");
-
-  return reply.status(500).send({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message:
-        config.nodeEnv === "production"
-          ? "Something went wrong"
-          : error.message,
-    },
-  });
-});
-
+  // API routes
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(userRoutes, { prefix: "/api/users" });
   await app.register(challengeRoutes, { prefix: "/api/challenges" });
@@ -118,11 +122,17 @@ const buildApp = async () => {
 
 const start = async () => {
   const app = await buildApp();
-
+  //Graceful shutdown
   const shutdown = async (signal: string) => {
-    app.log.info(`${signal} received, shutting down`);
-    await app.close();
-    process.exit(0);
+    app.log.info({ signal }, "Shutting down gracefully");
+
+    try {
+      await app.close();
+      process.exit(0);
+    } catch (error) {
+      app.log.error({ error }, "Error during shutdown");
+      process.exit(1);
+    }
   };
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
@@ -135,7 +145,8 @@ const start = async () => {
     process.exit(1);
   }
 };
-
+// Start the server only when this file is run directly.
+// This keeps buildApp reusable for tests.
 if (require.main === module) {
   start();
 }
