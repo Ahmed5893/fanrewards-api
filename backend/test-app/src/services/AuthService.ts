@@ -1,9 +1,3 @@
-// Implement AuthService
-// - register: create user, return tokens
-// - login: verify credentials, return tokens
-// - refresh: validate refresh token, issue new token pair
-// - logout: invalidate refresh token
-
 import bcrypt from "bcrypt";
 import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { DataSource } from "typeorm";
@@ -27,7 +21,7 @@ export class AuthService {
 
   constructor(private readonly db: DataSource) {}
 
-  //Register a User
+  //Register a user
 
   async register(input: RegisterInput): Promise<AuthResponse> {
     const userRepository = this.db.getRepository(User);
@@ -53,15 +47,11 @@ export class AuthService {
       savedUser.id,
       savedUser.refreshTokenVersion,
     );
-    await userRepository.update(
-      { id: savedUser.id },
-      {
-        refreshTokenHash: await bcrypt.hash(
-          tokens.refreshToken,
-          this.saltRounds,
-        ),
-      },
+    const refreshTokenHash = await bcrypt.hash(
+      tokens.refreshToken,
+      this.saltRounds,
     );
+    await userRepository.update({ id: savedUser.id }, { refreshTokenHash });
 
     return {
       user: this.toAuthUserResponse(savedUser),
@@ -69,7 +59,7 @@ export class AuthService {
     };
   }
 
-  //User Log In
+  //Log in a user
 
   async login(input: LoginInput): Promise<AuthResponse> {
     const userRepository = this.db.getRepository(User);
@@ -92,15 +82,16 @@ export class AuthService {
 
     const nextRefreshTokenVersion = user.refreshTokenVersion + 1;
     const tokens = this.generateTokenPair(user.id, nextRefreshTokenVersion);
-    user.refreshTokenVersion = nextRefreshTokenVersion;
+    const refreshTokenHash = await bcrypt.hash(
+      tokens.refreshToken,
+      this.saltRounds,
+    );
+
     await userRepository.update(
       { id: user.id },
       {
         refreshTokenVersion: nextRefreshTokenVersion,
-        refreshTokenHash: await bcrypt.hash(
-          tokens.refreshToken,
-          this.saltRounds,
-        ),
+        refreshTokenHash,
       },
     );
 
@@ -159,7 +150,7 @@ export class AuthService {
 
     return tokens;
   }
-  //Logout
+  //Log out by invalidating the refresh token
   async logout(refreshToken: string): Promise<void> {
     const userRepository = this.db.getRepository(User);
     let payload: RefreshTokenPayload;
@@ -207,7 +198,7 @@ export class AuthService {
       throw new Error("INVALID_REFRESH_TOKEN");
     }
   }
-
+  // Generate access and refresh tokens for the authenticated user.
   private generateTokenPair(
     userId: string,
     refreshTokenVersion: number,
@@ -240,7 +231,7 @@ export class AuthService {
       refreshToken,
     };
   }
-
+  // Converts a User entity into a safe response object for the frontend.
   private toAuthUserResponse(user: User): AuthUserResponse {
     return {
       id: user.id,
