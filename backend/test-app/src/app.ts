@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
+import crypto from "crypto";
 import { config } from "./config";
 import { dbPlugin } from "./plugins/db";
 import authRoutes from "./routes/auth";
@@ -12,11 +13,24 @@ import rewardRoutes from "./routes/rewards";
 import leaderboardRoutes from "./routes/leaderboard";
 
 const buildApp = async () => {
+  //add ID to every req so logs can be traced
   const app = Fastify({
-    logger: {
-      level: config.logLevel,
-    },
-  });
+  logger: {
+    level: config.logLevel,
+  },
+  genReqId: (request) => {
+    const requestId = request.headers["x-request-id"];
+
+    if (typeof requestId === "string" && requestId.trim()) {
+      return requestId;
+    }
+
+    return crypto.randomUUID();
+  },
+});
+app.addHook("onRequest", async (request, reply) => {
+  reply.header("X-Request-Id", request.id);
+});
 
   // Security and request protection plugins
   await app.register(cors, {
