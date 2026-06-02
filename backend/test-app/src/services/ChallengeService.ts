@@ -1,8 +1,3 @@
-// Implement ChallengeService
-// - list: paginated, filterable by difficulty and active status
-// - getById: return a single challenge
-// - complete: record a completion and award points based on listen duration
-
 import { DataSource } from "typeorm";
 import { Challenge, ChallengeDifficulty } from "../entities/Challenge";
 import { ChallengeCompletion } from "../entities/ChallengeCompletion";
@@ -54,12 +49,12 @@ export interface CompleteChallengeResponse {
 
 export class ChallengeService {
   constructor(private readonly db: DataSource) {}
-
+  // List challenges with pagination and optional filters
   async list(
     options: ListChallengesOptions,
   ): Promise<PaginatedResult<ChallengeResponse>> {
-    const page = Math.max(options.page, 1);
-    const limit = Math.min(Math.max(options.limit, 1), 100);
+    const page = Math.max(options.page ?? 1, 1);
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
     const skip = (page - 1) * limit;
 
     const challengeRepository = this.db.getRepository(Challenge);
@@ -94,7 +89,7 @@ export class ChallengeService {
       },
     };
   }
-  //Get challenge by ID
+  // Get challenge by ID
   async getById(id: string): Promise<ChallengeResponse | null> {
     const challengeRepository = this.db.getRepository(Challenge);
 
@@ -109,28 +104,14 @@ export class ChallengeService {
     return this.toChallengeResponse(challenge);
   }
 
-  private toChallengeResponse(challenge: Challenge): ChallengeResponse {
-    return {
-      id: challenge.id,
-      title: challenge.title,
-      artist: challenge.artist,
-      description: challenge.description,
-      points: challenge.points,
-      durationSeconds: challenge.durationSeconds,
-      difficulty: challenge.difficulty,
-      active: challenge.active,
-      createdAt: challenge.createdAt.toISOString(),
-      updatedAt: challenge.updatedAt.toISOString(),
-    };
-  }
-  //inserts challenge_completions row and  updates users.totalPoints
+  // inserts challenge_completions row and  updates users.totalPoints
   async complete(
     input: CompleteChallengeInput,
   ): Promise<CompleteChallengeResponse> {
     if (input.listenPercentage < 0 || input.listenPercentage > 100) {
       throw new Error("INVALID_LISTEN_PERCENTAGE");
     }
-      return this.db.transaction(async (manager) => {
+    return this.db.transaction(async (manager) => {
       const userRepository = manager.getRepository(User);
       const challengeRepository = manager.getRepository(Challenge);
       const completionRepository = manager.getRepository(ChallengeCompletion);
@@ -169,7 +150,7 @@ export class ChallengeService {
 
       const savedCompletion = await completionRepository.save(completion);
 
-      await manager
+      const updateResult = await manager
         .createQueryBuilder()
         .update(User)
         .set({
@@ -177,7 +158,9 @@ export class ChallengeService {
         })
         .where("id = :userId", { userId: input.userId })
         .execute();
-
+      if (!updateResult.affected) {
+        throw new Error("USER_NOT_FOUND");
+      }
       const updatedUser = await manager.findOne(User, {
         where: { id: input.userId },
       });
@@ -195,7 +178,22 @@ export class ChallengeService {
       };
     });
   }
-
+  // Convert a Challenge entity into a safe API response object
+  private toChallengeResponse(challenge: Challenge): ChallengeResponse {
+    return {
+      id: challenge.id,
+      title: challenge.title,
+      artist: challenge.artist,
+      description: challenge.description,
+      points: challenge.points,
+      durationSeconds: challenge.durationSeconds,
+      difficulty: challenge.difficulty,
+      active: challenge.active,
+      createdAt: challenge.createdAt.toISOString(),
+      updatedAt: challenge.updatedAt.toISOString(),
+    };
+  }
+  // Calculate awarded points from the listen percentage business rule
   private calculatePointsEarned(
     challengePoints: number,
     listenPercentage: number,
@@ -206,7 +204,7 @@ export class ChallengeService {
 
     return Math.floor((challengePoints * listenPercentage) / 100);
   }
-
+  // Convert a ChallengeCompletion entity into a safe API response object
   private toCompletionResponse(
     completion: ChallengeCompletion,
   ): ChallengeCompletionResponse {
