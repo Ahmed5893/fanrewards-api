@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Read a required environment variable.
+// If it is missing, stop the app early with a clear error.
 function requiredEnv(name: string): string {
   const value = process.env[name];
 
@@ -11,6 +13,8 @@ function requiredEnv(name: string): string {
 
   return value;
 }
+// Read an optional comma-separated environment variable.
+// Returns a clean array of strings.
 function optionalCsvEnv(name: string): string[] {
   const value = process.env[name];
 
