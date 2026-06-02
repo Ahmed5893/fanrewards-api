@@ -169,3 +169,5 @@ CORS uses an environment-configured origin allowlist instead of allowing all bro
 The API uses a global rate limit for baseline abuse protection and stricter limits on authentication routes. Auth endpoints are more sensitive to brute-force and token-abuse attempts, so their limits are configurable separately from the global API limit.
 
 Rate limit responses use the standard error envelope with `RATE_LIMIT_EXCEEDED`.
+
+I added request correlation IDs using Fastify’s genReqId. If the client sends X-Request-Id, the API keeps it; otherwise it generates a UUID. The ID is included in logs and returned in the response header, which makes it easier to trace a single request during debugging.
