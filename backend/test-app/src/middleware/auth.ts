@@ -1,9 +1,6 @@
-// Implement auth middleware
-// Protect routes by verifying the JWT from the Authorization header
-// Attach the authenticated user to the request
-import { FastifyReply, FastifyRequest } from 'fastify';
-import jwt, { JwtPayload } from 'jsonwebtoken';
-import { config } from '../config';
+import { FastifyReply, FastifyRequest } from "fastify";
+import jwt, { JwtPayload } from "jsonwebtoken";
+import { config } from "../config";
 
 interface AccessTokenPayload extends JwtPayload {
   userId: string;
@@ -18,19 +15,18 @@ export async function authenticate(
   if (!authorizationHeader) {
     return reply.status(401).send({
       error: {
-        code: 'UNAUTHORIZED',
-        message: 'Missing authorization header',
+        code: "UNAUTHORIZED",
+        message: "Missing authorization header",
       },
     });
   }
 
-  const [scheme, token] = authorizationHeader.split(' ');
-
-  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+  const [scheme, token] = authorizationHeader.trim().split(/\s+/);
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
     return reply.status(401).send({
       error: {
-        code: 'UNAUTHORIZED',
-        message: 'Invalid authorization header',
+        code: "UNAUTHORIZED",
+        message: "Invalid authorization header",
       },
     });
   }
@@ -47,8 +43,8 @@ export async function authenticate(
   } catch {
     return reply.status(401).send({
       error: {
-        code: 'UNAUTHORIZED',
-        message: 'Invalid or expired token',
+        code: "UNAUTHORIZED",
+        message: "Invalid or expired token",
       },
     });
   }

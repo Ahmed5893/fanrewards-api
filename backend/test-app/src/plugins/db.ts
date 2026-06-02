@@ -11,7 +11,6 @@ import { ChallengeCompletion } from '../entities/ChallengeCompletion';
 import { Reward } from '../entities/Reward';
 import { RewardRedemption } from '../entities/RewardRedemption';
 
-// TODO: Import your entities here
 
 const dataSource = new DataSource({
   type: 'postgres',
@@ -44,7 +43,6 @@ const dbPlugin = fp(dbPluginFunction, {
   name: 'db-plugin',
 });
 
-export { dataSource,dbPlugin };
+export { dataSource, dbPlugin };
 
-// TODO: Create a Fastify plugin that initializes the DataSource
-// and decorates the Fastify instance with it
+
