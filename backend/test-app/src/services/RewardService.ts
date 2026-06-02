@@ -1,8 +1,3 @@
-// Implement RewardService
-// - list: return available rewards
-// - redeem: spend points on a reward, create a redemption record
-// - getHistory: return a user's past redemptions
-
 import { DataSource } from "typeorm";
 import { Reward } from "../entities/Reward";
 import { User } from "../entities/User";
@@ -38,13 +33,13 @@ export interface RedeemRewardResponse {
     totalPoints: number;
   };
 }
-
+// Custom error used when a user does not have enough points to redeem a reward
 export class InsufficientPointsError extends Error {
   constructor(public readonly pointsNeeded: number) {
     super("INSUFFICIENT_POINTS");
   }
 }
-//Get rewards list
+// List available rewards
 export class RewardService {
   constructor(private readonly db: DataSource) {}
 
@@ -75,7 +70,7 @@ export class RewardService {
     };
   }
 
-  //reward redeem
+ // Redeem a reward and deduct points atomically
   async redeem(
     userId: string,
     rewardId: string,
@@ -145,7 +140,7 @@ export class RewardService {
       };
     });
   }
-  //Reward history
+  // Get redemption history for a user
   async getHistory(userId: string): Promise<RewardRedemptionResponse[]> {
     const redemptionRepository = this.db.getRepository(RewardRedemption);
 
