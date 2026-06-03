@@ -14,6 +14,7 @@ import {
 import { ChallengeCompletion } from "./ChallengeCompletion";
 import { RewardRedemption } from "./RewardRedemption";
 
+@Index(["totalPoints", "createdAt"])
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn("uuid")
