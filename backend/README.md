@@ -4,6 +4,7 @@
 
 Build a simplified fan rewards API that demonstrates the core backend patterns used in Belong's platform. We've provided a starter project with the barebones to get you going.
 
+## Demo Video: https://drive.google.com/file/d/1eXB7BimVhkC3nDmL0jX6NnVGD17S2ZP5/view?usp=sharing
 ---
 
 ## Belong Backend Infrastructure Analysis
