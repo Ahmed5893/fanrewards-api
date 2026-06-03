@@ -100,10 +100,10 @@ describe("auth", () => {
       },
     });
   });
-    // Verifies a valid refresh token returns a new token pair
-  it('refreshes tokens with a valid refresh token', async () => {
+  // Verifies a valid refresh token returns a new token pair
+  it("refreshes tokens with a valid refresh token", async () => {
     const loginResponse = await request(app.server)
-      .post('/api/auth/login')
+      .post("/api/auth/login")
       .send({
         email,
         password,
@@ -113,20 +113,24 @@ describe("auth", () => {
     const refreshToken = loginResponse.body.data.tokens.refreshToken;
 
     const refreshResponse = await request(app.server)
-      .post('/api/auth/refresh')
+      .post("/api/auth/refresh")
       .send({
         refreshToken,
       })
       .expect(200);
 
-    expect(refreshResponse.body.data.tokens.accessToken).toEqual(expect.any(String));
-    expect(refreshResponse.body.data.tokens.refreshToken).toEqual(expect.any(String));
+    expect(refreshResponse.body.data.tokens.accessToken).toEqual(
+      expect.any(String),
+    );
+    expect(refreshResponse.body.data.tokens.refreshToken).toEqual(
+      expect.any(String),
+    );
   });
 
   // Ensures refresh token rotation rejects a refresh token after it has already been used
-  it('rejects an old refresh token after rotation', async () => {
+  it("rejects an old refresh token after rotation", async () => {
     const loginResponse = await request(app.server)
-      .post('/api/auth/login')
+      .post("/api/auth/login")
       .send({
         email,
         password,
@@ -136,14 +140,14 @@ describe("auth", () => {
     const oldRefreshToken = loginResponse.body.data.tokens.refreshToken;
 
     await request(app.server)
-      .post('/api/auth/refresh')
+      .post("/api/auth/refresh")
       .send({
         refreshToken: oldRefreshToken,
       })
       .expect(200);
 
     const oldTokenResponse = await request(app.server)
-      .post('/api/auth/refresh')
+      .post("/api/auth/refresh")
       .send({
         refreshToken: oldRefreshToken,
       })
@@ -151,16 +155,16 @@ describe("auth", () => {
 
     expect(oldTokenResponse.body).toEqual({
       error: {
-        code: 'INVALID_REFRESH_TOKEN',
-        message: 'Invalid refresh token',
+        code: "INVALID_REFRESH_TOKEN",
+        message: "Invalid refresh token",
       },
     });
   });
 
-    // Verifies logout invalidates the current refresh token
-  it('invalidates refresh token on logout', async () => {
+  // Verifies logout invalidates the current refresh token
+  it("invalidates refresh token on logout", async () => {
     const loginResponse = await request(app.server)
-      .post('/api/auth/login')
+      .post("/api/auth/login")
       .send({
         email,
         password,
@@ -170,14 +174,14 @@ describe("auth", () => {
     const refreshToken = loginResponse.body.data.tokens.refreshToken;
 
     await request(app.server)
-      .post('/api/auth/logout')
+      .post("/api/auth/logout")
       .send({
         refreshToken,
       })
       .expect(200);
 
     const refreshAfterLogoutResponse = await request(app.server)
-      .post('/api/auth/refresh')
+      .post("/api/auth/refresh")
       .send({
         refreshToken,
       })
@@ -185,30 +189,28 @@ describe("auth", () => {
 
     expect(refreshAfterLogoutResponse.body).toEqual({
       error: {
-        code: 'INVALID_REFRESH_TOKEN',
-        message: 'Invalid refresh token',
+        code: "INVALID_REFRESH_TOKEN",
+        message: "Invalid refresh token",
       },
     });
   });
 
-    // Ensures protected user profile route rejects requests without an access token
-  it('rejects profile access without an access token', async () => {
-    const response = await request(app.server)
-      .get('/api/users/me')
-      .expect(401);
+  // Ensures protected user profile route rejects requests without an access token
+  it("rejects profile access without an access token", async () => {
+    const response = await request(app.server).get("/api/users/me").expect(401);
 
     expect(response.body).toEqual({
       error: {
-        code: 'UNAUTHORIZED',
-        message: 'Missing authorization header',
+        code: "UNAUTHORIZED",
+        message: "Missing authorization header",
       },
     });
   });
 
   // Ensures a valid access token can access the authenticated user's profile
-  it('returns current user profile with a valid access token', async () => {
+  it("returns current user profile with a valid access token", async () => {
     const loginResponse = await request(app.server)
-      .post('/api/auth/login')
+      .post("/api/auth/login")
       .send({
         email,
         password,
@@ -218,8 +220,8 @@ describe("auth", () => {
     const accessToken = loginResponse.body.data.tokens.accessToken;
 
     const profileResponse = await request(app.server)
-      .get('/api/users/me')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .get("/api/users/me")
+      .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
     expect(profileResponse.body.data.user).toMatchObject({

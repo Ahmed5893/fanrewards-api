@@ -2,174 +2,342 @@
 
 ## Overview
 
-FanRewards API is a backend service for a simplified fan rewards system. Users can register, complete music challenges, earn points, redeem rewards, and appear on a leaderboard.
+FanRewards API is a modular monolith built with Fastify, TypeScript, TypeORM, and PostgreSQL.
 
-The project is implemented as a modular monolith using Fastify, TypeScript, TypeORM, and PostgreSQL.
+The goal of this project was to build the required API in a way that is correct, secure enough for an MVP, easy to understand, and easy to test. I avoided adding too many extra features because I wanted the core business flows to be solid and explainable.
 
-## Architecture Style
+The main flow is:
 
-The application is structured around clear responsibilities:
+1. Users register or log in.
+2. Users complete music challenges and earn points.
+3. Users redeem rewards by spending points.
+4. Users appear on a leaderboard ranked by point balance.
 
-- Entities define the database model.
-- Routes handle HTTP requests and responses.
-- Services contain business logic.
-- Middleware handles cross-cutting concerns like authentication.
-- Plugins initialize shared infrastructure such as the database connection.
+## Application Structure
 
-This keeps route handlers thin and makes business logic easier to test and reason about.
+The app is separated into routes, services, entities, middleware, and plugins.
 
-## Database Design
+Routes handle HTTP-specific work:
 
-The core entities are:
+* request validation
+* reading params, body, and query values
+* applying authentication middleware
+* choosing HTTP status codes
+* returning the response envelope
 
-- `User` — stores account data, password hash, display name, refresh token hash, and total points.
-- `Challenge` — stores music challenges that users can complete.
-- `ChallengeCompletion` — records each time a user completes a challenge and earns points.
-- `Reward` — stores rewards users can redeem with points.
-- `RewardRedemption` — records each time a user spends points on a reward.
+Services handle business logic:
 
-`ChallengeCompletion` and `RewardRedemption` are history tables. They preserve the earning and spending history behind a user's point balance.
+* registration and login
+* refresh token rotation
+* challenge completion
+* point calculation
+* reward redemption
+* leaderboard ranking
 
-## Entity Relationships
+Entities define the database model, middleware handles shared request logic like authentication, and plugins initialize shared infrastructure like the database connection.
 
-- A user can have many challenge completions.
-- A challenge can have many challenge completions.
-- A user can have many reward redemptions.
-- A reward can have many reward redemptions.
+This structure keeps route handlers thin. It also makes the business rules easier to find, test, and explain.
 
-This separates catalog data (`Challenge`, `Reward`) from user activity history (`ChallengeCompletion`, `RewardRedemption`).
+## Database Model
 
-## Data Integrity Decisions
+The main entities are:
 
-Reward names are unique because the seed script uses reward name as the natural key for idempotency.
+* `User`
+* `Challenge`
+* `ChallengeCompletion`
+* `Reward`
+* `RewardRedemption`
 
-Challenges are unique by the combination of title and artist. Title alone is not unique because different artists may have tracks with the same title.
+`Challenge` and `Reward` are catalog tables. They describe what users can complete or redeem.
 
-Completion and redemption relations use restricted deletes instead of cascade deletes. These records represent points history, so deleting a user, challenge, or reward should not silently delete audit/history records.
+`ChallengeCompletion` and `RewardRedemption` are history tables. They record what users actually did.
 
-## Migrations
+This separation keeps catalog data separate from activity history. A challenge can exist once, but many users can complete it many times. A reward can exist once, but many users can redeem it.
 
-The project uses TypeORM migrations with `synchronize: false`.
+Important relationships:
 
-This makes schema changes explicit, repeatable, and safer than automatically synchronizing the database schema on application startup.
+* A user can have many challenge completions.
+* A challenge can have many challenge completions.
+* A user can have many reward redemptions.
+* A reward can have many reward redemptions.
 
-## Database Plugin
+I used restricted deletes on the history relations instead of cascade deletes because completions and redemptions represent point history. I did not want deleting a user, challenge, or reward to silently remove historical records.
 
-The database connection is initialized through a Fastify plugin. The plugin initializes the TypeORM `DataSource`, decorates the Fastify instance with `db`, and closes the connection on shutdown.
+## Current Point Balance
 
-Because Fastify plugins are encapsulated by default, the database plugin is wrapped with `fastify-plugin` so the decorated `db` property is available to routes.
+The current point balance is stored on `users.totalPoints`.
 
-## Health Check
+The alternative would be calculating the balance every time from all completions and redemptions. I did not use that approach because the current balance is needed often:
 
-The `/health` endpoint returns API status and database connectivity status. It uses a lightweight `SELECT 1` query to verify the database connection.
+* user profile stats
+* reward redemption checks
+* leaderboard ranking
+* responses after completing a challenge or redeeming a reward
 
+Keeping `totalPoints` on the user makes reads simple and fast.
 
-## Authentication Design
-
-Authentication is implemented with JWT access and refresh tokens.
-
-Access tokens are short-lived and are used to authenticate protected API requests. Refresh tokens are longer-lived and are used to obtain a new access token when the access token expires.
-
-Passwords are never stored in plain text. User passwords are hashed with bcrypt before being saved in the database.
-
-Refresh tokens are also not stored in plain text. The API stores a hash of the latest refresh token on the user record. This allows logout and refresh token invalidation without keeping raw tokens in the database.
-
-JWT secrets are required environment variables. The application fails fast if they are missing instead of falling back to public default secrets.
-
-The auth service is responsible for registration, login, token generation, refresh token validation, and logout. Route handlers remain thin and delegate business logic to the service layer.
-
-### Registration
-
-User registration is handled in the auth service rather than directly inside the route handler. The route is responsible for receiving and validating the HTTP request, while the service handles the business logic.
-
-During registration, the API normalizes the email address, checks whether the email already exists, hashes the password with bcrypt, creates the user, generates an access token and refresh token, and stores only a hashed version of the refresh token.
-
-The registration response returns safe user fields and tokens. Sensitive fields such as `passwordHash` and `refreshTokenHash` are never returned in API responses.
-
-## Refresh 
-Refresh tokens use rotation. When a valid refresh token is used, the API verifies it, compares it with the hashed refresh token stored in the database, issues a new access/refresh token pair, and replaces the stored refresh token hash.
-
-This means old refresh tokens are invalidated after use, reducing risk if a refresh token is leaked or reused.
-
-Logout invalidates refresh-based sessions by clearing the stored `refreshTokenHash` on the user record. This prevents the previous refresh token from being used to obtain new access tokens.
-
-During manual testing, I noticed that hash-only refresh token rotation was not enough to clearly protect against repeated use of an older refresh token in all cases. I improved the design by adding a server-side `refreshTokenVersion` to the user record and including that version inside refresh token payloads.
-
-On each successful login, refresh, or logout, the version is incremented. A refresh token is only accepted if its embedded version matches the user's current `refreshTokenVersion` and its raw value matches the stored hashed refresh token. This makes old refresh tokens invalid after rotation and gives stronger protection against replay or concurrent refresh attempts.
-
-## Logout
-Logout invalidates refresh-based sessions by accepting the refresh token, verifying it, comparing it against the hashed refresh token stored in the database, and clearing `refreshTokenHash` on the user record.
-
-This keeps logout focused on invalidating the long-lived session token and allows logout to work even when the short-lived access token has expired.
-Logout and Login also increments `refreshTokenVersion`, so any refresh token issued before logout is invalid even if its JWT signature has not expired.
-## Future Improvements
-
-Password reset is intentionally left out of the MVP because a secure implementation requires one-time reset tokens, token expiry, email delivery, rate limiting, and session invalidation after password change. In production, I would implement a `password_reset_tokens` table or equivalent secure token store, send reset links through a trusted email provider, hash stored reset tokens, expire them quickly, and increment `refreshTokenVersion` after a successful reset to invalidate existing refresh sessions.
-
-## Operational Concerns
-
-The application uses a global Fastify error handler to keep error responses consistent with the API response envelope. Validation errors are returned as `400` responses with a `VALIDATION_ERROR` code.
-
-The health check verifies database connectivity with a lightweight `SELECT 1` query. If the database is unavailable, the API returns `503` with a degraded status because PostgreSQL is a required dependency.
-
-The application handles `SIGINT` and `SIGTERM` for graceful shutdown. On shutdown, Fastify is closed so plugin cleanup hooks can run, including closing the TypeORM database connection.
-
-## User Profile
-
-`GET /api/users/me` returns the authenticated user's safe profile fields only. Sensitive authentication fields such as `passwordHash`, `refreshTokenHash`, and `refreshTokenVersion` are never returned.
-
-`PATCH /api/users/me` is intentionally limited to updating `displayName`. Email and password changes are security-sensitive flows and should not be mixed into a generic profile update endpoint.
-
-Changing email would require additional protections such as password confirmation, uniqueness checks, and email verification. Changing password would require current-password verification, password hashing, and refresh-session invalidation. These can be implemented as separate dedicated flows if needed.
-
-`GET /api/users/me/stats` returns a lightweight summary for the authenticated user, including current point balance, completed challenge count, and redeemed reward count.
-
-The endpoint returns aggregate counts instead of full completion/redemption history to keep the profile summary small and focused. Detailed history can be exposed later through separate paginated endpoints.
+The tradeoff is that writes must be handled carefully. If point updates are not done safely, the balance can become incorrect. That is why challenge completion and reward redemption both update points inside database transactions.
 
 ## Challenge Completion
 
-Challenge completion is handled in the service layer and requires authentication. The route validates the challenge ID and listen percentage before delegating to `ChallengeService`.
+Challenge completion creates a `ChallengeCompletion` record and updates the user's `totalPoints`.
 
-Points are awarded based on listen percentage. Listening to at least 80% of a challenge earns full points, while lower percentages earn proportional partial credit.
+The point rule is:
 
-Completion is executed inside a database transaction because it creates a `ChallengeCompletion` record and updates the user's `totalPoints`. This keeps the completion history and point balance consistent.
-## Update
-Challenge completion uses an atomic database increment for `totalPoints` so concurrent completions for the same user do not overwrite each other's point updates. Multiple completions of the same challenge are allowed because each completion represents a separate listening event.
+* listening to at least 80% earns full points
+* listening to less than 80% earns proportional partial points
+* fractional points are rounded down
+
+Multiple completions of the same challenge are allowed. I kept that behavior because each completion represents a separate listening event.
+
+The point update uses an atomic database increment instead of reading the user balance, changing it in memory, and saving it back.
+
+This matters for concurrency. If two completions happen at the same time, both point increments should count. An atomic increment lets PostgreSQL apply both updates safely.
 
 ## Reward Redemption
 
-Reward redemption is handled in the service layer and requires authentication. The route is responsible for validating the reward ID and identifying the authenticated user, while `RewardService` handles the business rules.
+Reward redemption is more sensitive than challenge completion because it spends points.
 
-A reward can only be redeemed if it exists, is available, and the user has enough points. When redemption succeeds, the API deducts points from the user's balance and creates a `RewardRedemption` record with `pending` status.
+The service checks that:
 
-The redemption flow uses a database transaction because it updates the user's `totalPoints` and inserts a redemption history record. The point deduction is performed with an atomic conditional update so the database only deducts points if the user still has enough points at update time. This avoids race conditions where two concurrent redemption requests could spend the same points twice.
+* the reward exists
+* the reward is available
+* the user has enough points
 
-`GET /api/rewards/history` returns the authenticated user's redemption history with reward details. This keeps redemption history separate from the reward catalog and allows the API to show what the user has spent points on without exposing other users' activity.
+The point deduction uses an atomic conditional update. In simple terms, the database only deducts points if the user still has enough points at the exact moment of the update.
+
+This avoids a race condition where two redemption requests both read the same balance and both spend the same points.
+
+If the update affects zero rows, the service treats that as insufficient points and returns an `INSUFFICIENT_POINTS` error with the missing amount.
+
+The reward redemption record is created inside the same transaction as the point deduction. That keeps the user's balance and redemption history consistent.
+
+## Authentication
+
+Authentication uses JWT access tokens and refresh tokens.
+
+Access tokens are short-lived and are used for normal protected API requests.
+
+Refresh tokens are longer-lived and are used to get a new token pair.
+
+Passwords are hashed with bcrypt before storage. Refresh tokens are also hashed before storage because they are long-lived credentials. If the database leaked, storing only a refresh token hash would prevent raw refresh tokens from being directly used.
+
+JWT secrets are required environment variables. The app fails on startup if they are missing instead of using unsafe default secrets.
+
+## Refresh Token Rotation
+
+Refresh tokens use rotation.
+
+The user table stores a `refreshTokenVersion`. That version is also included inside the refresh token payload.
+
+A refresh token is accepted only if:
+
+* the token signature is valid
+* the token has not expired
+* the token version matches the user's current `refreshTokenVersion`
+* the raw refresh token matches the stored hashed refresh token
+
+On login, refresh, and logout, the version is incremented.
+
+This gives the server a way to reject old refresh tokens before their JWT expiry time. Without the version, an old signed refresh token could still be valid until it expires.
+
+This design is intentionally simple. It supports one active refresh token per user. For multi-device support, I would move refresh tokens into a separate `refresh_sessions` table with one row per device/session.
+
+## Logout
+
+Logout accepts a refresh token because logout is invalidating the long-lived refresh credential.
+
+The access token proves who the user is, but the refresh token proves the client holds the session credential that should be invalidated.
+
+During logout, the service verifies the refresh token, checks its version, compares it with the stored hash, increments `refreshTokenVersion`, and clears `refreshTokenHash`.
+
+This also allows logout to work even if the short-lived access token has already expired.
+
+## Authentication Middleware
+
+Protected routes use an auth middleware that expects:
+
+```txt
+Authorization: Bearer <access-token>
+```
+
+The middleware verifies the access token with the access token secret and attaches the authenticated `userId` to the request.
+
+Refresh tokens are not accepted for normal API requests. They are signed with a different secret and are only used by the refresh/logout flow.
+
+## User Profile
+
+`GET /api/users/me` returns safe user fields only.
+
+It does not return:
+
+* `passwordHash`
+* `refreshTokenHash`
+* `refreshTokenVersion`
+
+`PATCH /api/users/me` only updates `displayName`.
+
+I kept email and password changes out of the generic profile update endpoint because they need extra security steps. Email changes usually need verification. Password changes need current-password confirmation or reset-token flow, password hashing, and refresh-session invalidation.
+
+Those would be better as separate dedicated endpoints.
 
 ## Leaderboard
 
-The leaderboard ranks users by `totalPoints` and returns paginated results using the standard `{ data, meta }` response envelope.
+The leaderboard ranks users by `totalPoints`.
 
-Ranking uses database-level window functions with `RANK()` so users with the same point total share the same rank. A secondary ordering by creation time keeps the result order stable when points are tied.
+I used `DENSE_RANK()` because this is an app leaderboard, not a physical competition. Dense ranking avoids skipped ranks.
 
-`GET /api/leaderboard/me` returns the authenticated user's current rank and total user count, allowing clients to show the user's position without fetching every leaderboard page.
-## Update
-Leaderboard ranking uses `DENSE_RANK()` so users with the same point total share the same rank and the next point tier receives the next rank without gaps. A secondary ordering by creation time keeps display order stable inside tied ranks.
+Example:
 
-## Testing Strategy
+```txt
+500 points -> rank 1
+500 points -> rank 1
+300 points -> rank 2
+100 points -> rank 3
+```
 
-The project uses Jest and Supertest for integration-style API tests. Tests build the Fastify app directly with `buildApp()` instead of starting a real HTTP listener, which keeps tests fast while still exercising the registered plugins, routes, middleware, validation, and database access.
+Users with the same points share the same rank. A secondary ordering by account creation time keeps the display order stable inside tied ranks.
 
-Tests use the separate `fan_rewards_test` PostgreSQL database from Docker Compose instead of the development database. This keeps automated test data isolated from manual development data.
+For `GET /api/leaderboard/me`, the API does not need to load every user into memory. It can calculate the user's dense rank by counting how many distinct point totals are above the user's current point total.
 
-The current tests cover health checks, authentication flows, refresh token rotation, logout invalidation, protected route access, and a core business flow that completes a challenge, earns points, redeems a reward, checks redemption history, and verifies leaderboard rank.
+The leaderboard reads directly from `users.totalPoints`, so point changes from challenge completion and reward redemption are reflected immediately.
+
+## Error Handling
+
+Expected business errors are handled in route handlers.
+
+Examples:
+
+* duplicate email
+* invalid credentials
+* challenge not found
+* reward not found
+* insufficient points
+
+Routes map those errors to the correct HTTP status codes and response body.
+
+The global Fastify error handler is still needed for framework-level and unexpected errors, such as:
+
+* validation errors
+* rate limit errors
+* unexpected database errors
+* programming mistakes
+
+This keeps error responses consistent without forcing every route to handle framework errors manually.
+
+## API Response Format
+
+The API uses a consistent response envelope.
+
+Successful responses use:
+
+```json
+{
+  "data": {}
+}
+```
+
+Paginated responses use:
+
+```json
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "totalPages": 3
+  }
+}
+```
+
+Error responses use:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message"
+  }
+}
+```
+
+This makes the API predictable for clients and tests.
 
 ## Security Hardening
 
-CORS uses an environment-configured origin allowlist instead of allowing all browser origins. Requests without an `Origin` header are still allowed so curl, tests, health checks, and server-to-server calls continue to work.
+I added a few practical security improvements without making the project too complex.
 
-The API uses a global rate limit for baseline abuse protection and stricter limits on authentication routes. Auth endpoints are more sensitive to brute-force and token-abuse attempts, so their limits are configurable separately from the global API limit.
+The API uses Helmet for common HTTP security headers.
 
-Rate limit responses use the standard error envelope with `RATE_LIMIT_EXCEEDED`.
+CORS uses an environment-configured allowlist instead of allowing all browser origins. Requests without an `Origin` header are still allowed so curl, tests, health checks, and server-to-server calls continue to work.
 
-I added request correlation IDs using Fastify’s genReqId. If the client sends X-Request-Id, the API keeps it; otherwise it generates a UUID. The ID is included in logs and returned in the response header, which makes it easier to trace a single request during debugging.
+The API has a global rate limit for general abuse protection and stricter rate limits on authentication routes. Auth routes are more sensitive because login, register, refresh, and logout can be targets for brute-force or token-abuse attempts.
+
+JWT secrets are required environment variables.
+
+## Health Check and Shutdown
+
+The `/health` endpoint checks database connectivity with a lightweight `SELECT 1`.
+
+If the database is connected, it returns `200`.
+
+If the database is unavailable, it returns `503` because PostgreSQL is required for the API to work correctly.
+
+The app handles `SIGINT` and `SIGTERM` for graceful shutdown. When the app shuts down, Fastify closes and plugin cleanup hooks run, including closing the TypeORM database connection.
+
+## Testing Strategy
+
+I used Jest and Supertest for integration-style API tests.
+
+The tests build the Fastify app with `buildApp()` instead of starting a real HTTP listener. This keeps tests fast while still testing real plugins, routes, middleware, validation, and database access.
+
+Tests use the separate `fan_rewards_test` PostgreSQL database from Docker Compose. That keeps automated test data separate from manual development data.
+
+The tests cover:
+
+* health check
+* registration
+* duplicate email handling
+* login
+* invalid login
+* refresh token rotation
+* old refresh token rejection
+* logout invalidation
+* protected route access
+* challenge completion
+* reward redemption
+* reward history
+* leaderboard rank lookup
+
+## Tradeoffs and Future Improvements
+
+I intentionally avoided adding too many bonus features because I wanted the required API to be correct, tested, and easy to explain.
+
+### Caching
+
+I did not add leaderboard caching.
+
+Caching is useful at scale, but point balances change when users complete challenges or redeem rewards. A simple cache could show stale rankings unless it has a clear invalidation strategy.
+
+For this MVP, I chose correctness and immediate consistency. At larger scale, I would consider short TTL caching, a materialized view, or a background job for leaderboard recalculation.
+
+### Password Reset
+
+I did not add password reset.
+
+A secure password reset flow needs one-time reset tokens, token expiry, email delivery, rate limiting, and session invalidation after password change.
+
+In production, I would implement a dedicated reset-token table, hash reset tokens, expire them quickly, and increment `refreshTokenVersion` after a successful password reset.
+
+### Multi-Device Refresh Sessions
+
+The current refresh token design supports one active refresh token per user.
+
+For multi-device support, I would move refresh tokens into a separate `refresh_sessions` table with one row per device/session.
+
+### Point Ledger
+
+The current implementation stores the current balance on `users.totalPoints` and keeps earning/spending history in completion and redemption tables.
+
+A future improvement would be a dedicated `point_ledger_entries` table that records every point movement with the delta, resulting balance, type, and source event. This would make point auditing stronger while still keeping `users.totalPoints` for fast reads and leaderboard ranking.

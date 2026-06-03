@@ -56,7 +56,9 @@ describe("business flow", () => {
       listenPercentage: 80,
     });
 
-    expect(completionResponse.body.data.user.totalPoints).toBe(challenge.points);
+    expect(completionResponse.body.data.user.totalPoints).toBe(
+      challenge.points,
+    );
 
     const statsResponse = await request(app.server)
       .get("/api/users/me/stats")
@@ -64,7 +66,9 @@ describe("business flow", () => {
       .expect(200);
 
     expect(statsResponse.body.data.totalPoints).toBe(challenge.points);
-    expect(statsResponse.body.data.completedChallenges).toBeGreaterThanOrEqual(1);
+    expect(statsResponse.body.data.completedChallenges).toBeGreaterThanOrEqual(
+      1,
+    );
   });
 
   // Verifies a user can redeem an affordable reward and see it in history
@@ -90,7 +94,8 @@ describe("business flow", () => {
         .expect(200);
 
       const challenge = challengesResponse.body.data.find(
-        (candidate: { points: number }) => candidate.points >= reward.pointsCost,
+        (candidate: { points: number }) =>
+          candidate.points >= reward.pointsCost,
       );
 
       expect(challenge).toBeDefined();

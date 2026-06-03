@@ -1,9 +1,9 @@
-import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
-import request from 'supertest';
-import { FastifyInstance } from 'fastify';
-import { buildApp } from '../app';
+import { describe, expect, it, beforeAll, afterAll } from "@jest/globals";
+import request from "supertest";
+import { FastifyInstance } from "fastify";
+import { buildApp } from "../app";
 
-describe('health', () => {
+describe("health", () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -15,14 +15,12 @@ describe('health', () => {
     await app.close();
   });
 
-  it('returns health status', async () => {
-    const response = await request(app.server)
-      .get('/health')
-      .expect(200);
+  it("returns health status", async () => {
+    const response = await request(app.server).get("/health").expect(200);
 
     expect(response.body).toEqual({
-      status: 'ok',
-      database: 'connected',
+      status: "ok",
+      database: "connected",
     });
   });
 });
