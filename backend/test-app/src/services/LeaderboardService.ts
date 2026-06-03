@@ -1,6 +1,3 @@
-// Implement LeaderboardService
-// - getTopFans: return fans ranked by total points, paginated
-// - getUserRank: return the current user's rank and points
 import { DataSource } from "typeorm";
 import { User } from "../entities/User";
 import { LeaderboardEntry, PaginatedResult } from "../types";
@@ -33,7 +30,7 @@ export class LeaderboardService {
       .select("user.id", "userId")
       .addSelect("user.displayName", "displayName")
       .addSelect("user.totalPoints", "totalPoints")
-      .addSelect("RANK() OVER (ORDER BY user.totalPoints DESC)", "rank")
+      .addSelect("DENSE_RANK() OVER (ORDER BY user.totalPoints DESC)", "rank")
       .orderBy("user.totalPoints", "DESC")
       .addOrderBy("user.createdAt", "ASC")
       .offset(offset)
@@ -51,30 +48,36 @@ export class LeaderboardService {
       },
     };
   }
-  //getUserRank
+  // Get current user's rank
   async getUserRank(userId: string): Promise<UserRankResponse | null> {
-  const userRepository = this.db.getRepository(User);
+    const userRepository = this.db.getRepository(User);
 
-  const rows = await userRepository
-    .createQueryBuilder("user")
-    .select("user.id", "userId")
-    .addSelect("user.displayName", "displayName")
-    .addSelect("user.totalPoints", "totalPoints")
-    .addSelect("RANK() OVER (ORDER BY user.totalPoints DESC)", "rank")
-    .getRawMany<RawLeaderboardRow>();
+    const user = await userRepository.findOne({
+      where: { id: userId },
+    });
 
-  const totalUsers = rows.length;
-  const row = rows.find((candidate) => candidate.userId === userId);
+    if (!user) {
+      return null;
+    }
 
-  if (!row) {
-    return null;
+    const higherPointTiers = await userRepository
+      .createQueryBuilder("user")
+      .select('COUNT(DISTINCT user."totalPoints")', "count")
+      .where('user."totalPoints" > :totalPoints', {
+        totalPoints: user.totalPoints,
+      })
+      .getRawOne<{ count: string }>();
+
+    const totalUsers = await userRepository.count();
+
+    return {
+      rank: Number(higherPointTiers?.count ?? 0) + 1,
+      userId: user.id,
+      displayName: user.displayName,
+      totalPoints: user.totalPoints,
+      totalUsers,
+    };
   }
-
-  return {
-    ...this.toLeaderboardEntry(row),
-    totalUsers,
-  };
-}
 
   private toLeaderboardEntry(row: RawLeaderboardRow): LeaderboardEntry {
     return {

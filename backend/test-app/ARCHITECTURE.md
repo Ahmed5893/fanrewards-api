@@ -153,6 +153,8 @@ The leaderboard ranks users by `totalPoints` and returns paginated results using
 Ranking uses database-level window functions with `RANK()` so users with the same point total share the same rank. A secondary ordering by creation time keeps the result order stable when points are tied.
 
 `GET /api/leaderboard/me` returns the authenticated user's current rank and total user count, allowing clients to show the user's position without fetching every leaderboard page.
+## Update
+Leaderboard ranking uses `DENSE_RANK()` so users with the same point total share the same rank and the next point tier receives the next rank without gaps. A secondary ordering by creation time keeps display order stable inside tied ranks.
 
 ## Testing Strategy
 
