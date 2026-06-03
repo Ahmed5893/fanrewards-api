@@ -276,6 +276,16 @@ The API has a global rate limit for general abuse protection and stricter rate l
 
 JWT secrets are required environment variables.
 
+## Observability
+
+The API assigns a correlation ID to every request using Fastify's `genReqId`. 
+If the client sends an `X-Request-Id` header, the API keeps it. Otherwise it 
+generates a UUID. The ID is attached to all log entries for that request and 
+returned in the response header.
+
+This makes it straightforward to trace a single request through logs during 
+debugging or incident investigation
+
 ## Health Check and Shutdown
 
 The `/health` endpoint checks database connectivity with a lightweight `SELECT 1`.
