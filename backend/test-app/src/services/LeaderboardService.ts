@@ -30,7 +30,11 @@ export class LeaderboardService {
       .select("user.id", "userId")
       .addSelect("user.displayName", "displayName")
       .addSelect("user.totalPoints", "totalPoints")
-      .addSelect("DENSE_RANK() OVER (ORDER BY user.totalPoints DESC)", "rank")
+      .addSelect(
+        'DENSE_RANK() OVER (ORDER BY "user"."totalPoints" DESC)',
+
+        "rank",
+      )
       .orderBy("user.totalPoints", "DESC")
       .addOrderBy("user.createdAt", "ASC")
       .offset(offset)
@@ -49,6 +53,7 @@ export class LeaderboardService {
     };
   }
   // Get current user's rank
+
   async getUserRank(userId: string): Promise<UserRankResponse | null> {
     const userRepository = this.db.getRepository(User);
 
@@ -61,20 +66,28 @@ export class LeaderboardService {
     }
 
     const higherPointTiers = await userRepository
-      .createQueryBuilder("user")
-      .select('COUNT(DISTINCT user."totalPoints")', "count")
-      .where('user."totalPoints" > :totalPoints', {
+
+      .createQueryBuilder("leaderboardUser")
+
+      .select('COUNT(DISTINCT "leaderboardUser"."totalPoints")', "count")
+
+      .where('"leaderboardUser"."totalPoints" > :totalPoints', {
         totalPoints: user.totalPoints,
       })
+
       .getRawOne<{ count: string }>();
 
     const totalUsers = await userRepository.count();
 
     return {
       rank: Number(higherPointTiers?.count ?? 0) + 1,
+
       userId: user.id,
+
       displayName: user.displayName,
+
       totalPoints: user.totalPoints,
+
       totalUsers,
     };
   }
