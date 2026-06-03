@@ -6,31 +6,31 @@ import {
   UpdateDateColumn,
   Index,
   OneToMany,
-} from 'typeorm';
+} from "typeorm";
 
-import { RewardRedemption } from './RewardRedemption';
+import { RewardRedemption } from "./RewardRedemption";
 
-@Entity('rewards')
+@Entity("rewards")
 export class Reward {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
-  
+
   @Index({ unique: true })
-  @Column({ type: 'varchar', length: 150 })
+  @Column({ type: "varchar", length: 150 })
   name!: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   description!: string;
 
-  @Column({ type: 'int' })
+  @Column({ type: "int" })
   pointsCost!: number;
 
   @Index()
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: "boolean", default: true })
   available!: boolean;
 
   @OneToMany(() => RewardRedemption, (redemption) => redemption.reward)
-redemptions!: RewardRedemption[];
+  redemptions!: RewardRedemption[];
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -120,7 +120,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
       });
     },
   );
-    // GET /me/stats
+  // GET /me/stats
   fastify.get(
     "/me/stats",
     {
@@ -139,7 +139,8 @@ export default async function userRoutes(fastify: FastifyInstance) {
       }
 
       const userRepository = fastify.db.getRepository(User);
-      const completionRepository = fastify.db.getRepository(ChallengeCompletion);
+      const completionRepository =
+        fastify.db.getRepository(ChallengeCompletion);
       const redemptionRepository = fastify.db.getRepository(RewardRedemption);
 
       const user = await userRepository.findOne({

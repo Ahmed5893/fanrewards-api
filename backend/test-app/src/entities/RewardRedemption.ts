@@ -5,44 +5,44 @@ import {
   CreateDateColumn,
   ManyToOne,
   Index,
-} from 'typeorm';
-import { User } from './User';
-import { Reward } from './Reward';
+} from "typeorm";
+import { User } from "./User";
+import { Reward } from "./Reward";
 
 export enum RewardRedemptionStatus {
-  PENDING = 'pending',
-  FULFILLED = 'fulfilled',
-  CANCELLED = 'cancelled',
+  PENDING = "pending",
+  FULFILLED = "fulfilled",
+  CANCELLED = "cancelled",
 }
 
-@Entity('reward_redemptions')
+@Entity("reward_redemptions")
 export class RewardRedemption {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: "uuid" })
   userId!: string;
 
   @Index()
-  @Column({ type: 'uuid' })
+  @Column({ type: "uuid" })
   rewardId!: string;
 
-  @ManyToOne(() => User,(user)=>user.rewardRedemptions, {
-    onDelete: 'RESTRICT',
+  @ManyToOne(() => User, (user) => user.rewardRedemptions, {
+    onDelete: "RESTRICT",
   })
   user!: User;
 
-  @ManyToOne(() => Reward,(reward)=>reward.redemptions, {
-    onDelete: 'RESTRICT',
+  @ManyToOne(() => Reward, (reward) => reward.redemptions, {
+    onDelete: "RESTRICT",
   })
   reward!: Reward;
 
-  @Column({ type: 'int' })
+  @Column({ type: "int" })
   pointsSpent!: number;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: RewardRedemptionStatus,
     default: RewardRedemptionStatus.PENDING,
   })

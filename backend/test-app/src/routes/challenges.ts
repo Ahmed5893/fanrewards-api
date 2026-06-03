@@ -83,9 +83,9 @@ export default async function challengeRoutes(fastify: FastifyInstance) {
     },
   );
 
-    // POST /api/challenges/:id/complete
+  // POST /api/challenges/:id/complete
   fastify.post<{ Params: ChallengeParams; Body: CompleteChallengeBody }>(
-    '/:id/complete',
+    "/:id/complete",
     {
       preHandler: authenticate,
       schema: {
@@ -99,8 +99,8 @@ export default async function challengeRoutes(fastify: FastifyInstance) {
       if (!userId) {
         return reply.status(401).send({
           error: {
-            code: 'UNAUTHORIZED',
-            message: 'Authentication required',
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
           },
         });
       }
@@ -116,39 +116,39 @@ export default async function challengeRoutes(fastify: FastifyInstance) {
           data: result,
         });
       } catch (error) {
-        if (error instanceof Error && error.message === 'CHALLENGE_NOT_FOUND') {
+        if (error instanceof Error && error.message === "CHALLENGE_NOT_FOUND") {
           return reply.status(404).send({
             error: {
-              code: 'CHALLENGE_NOT_FOUND',
-              message: 'Challenge not found',
+              code: "CHALLENGE_NOT_FOUND",
+              message: "Challenge not found",
             },
           });
         }
 
-        if (error instanceof Error && error.message === 'CHALLENGE_INACTIVE') {
+        if (error instanceof Error && error.message === "CHALLENGE_INACTIVE") {
           return reply.status(422).send({
             error: {
-              code: 'CHALLENGE_INACTIVE',
-              message: 'This challenge is not active',
+              code: "CHALLENGE_INACTIVE",
+              message: "This challenge is not active",
             },
           });
         }
 
-        if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+        if (error instanceof Error && error.message === "USER_NOT_FOUND") {
           return reply.status(401).send({
             error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authenticated user no longer exists',
+              code: "UNAUTHORIZED",
+              message: "Authenticated user no longer exists",
             },
           });
         }
 
-        request.log.error({ error }, 'Challenge completion failed');
+        request.log.error({ error }, "Challenge completion failed");
 
         return reply.status(500).send({
           error: {
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Something went wrong',
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Something went wrong",
           },
         });
       }

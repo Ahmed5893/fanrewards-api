@@ -32,7 +32,7 @@ export default async function leaderboardRoutes(fastify: FastifyInstance) {
     },
   );
 
-    // GET /api/leaderboard/me
+  // GET /api/leaderboard/me
   fastify.get(
     "/me",
     {

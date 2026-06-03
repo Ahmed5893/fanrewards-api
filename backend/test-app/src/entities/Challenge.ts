@@ -1,6 +1,3 @@
-// Implement the Challenge entity
-// Fields: id (uuid), title, artist, description, points, duration in seconds, difficulty, active status, timestamp
-// Relations: a challenge has many completions
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -9,51 +6,51 @@ import {
   UpdateDateColumn,
   Index,
   OneToMany,
-   Unique,
-} from 'typeorm';
+  Unique,
+} from "typeorm";
 
-import { ChallengeCompletion } from './ChallengeCompletion';
+import { ChallengeCompletion } from "./ChallengeCompletion";
 
 export enum ChallengeDifficulty {
-  EASY = 'easy',
-  MEDIUM = 'medium',
-  HARD = 'hard',
+  EASY = "easy",
+  MEDIUM = "medium",
+  HARD = "hard",
 }
 
-@Entity('challenges')
-@Unique(['title', 'artist'])
+@Entity("challenges")
+@Unique(["title", "artist"])
 export class Challenge {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: 'varchar', length: 150 })
+  @Column({ type: "varchar", length: 150 })
   title!: string;
 
   @Index()
-  @Column({ type: 'varchar', length: 150 })
+  @Column({ type: "varchar", length: 150 })
   artist!: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: "text" })
   description!: string;
 
-  @Column({ type: 'int' })
+  @Column({ type: "int" })
   points!: number;
 
-  @Column({ type: 'int' })
+  @Column({ type: "int" })
   durationSeconds!: number;
 
   @Column({
-    type: 'enum',
+    type: "enum",
     enum: ChallengeDifficulty,
   })
   difficulty!: ChallengeDifficulty;
 
   @Index()
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: "boolean", default: true })
   active!: boolean;
 
   @OneToMany(() => ChallengeCompletion, (completion) => completion.challenge)
-completions!: ChallengeCompletion[];
+  completions!: ChallengeCompletion[];
 
   @CreateDateColumn()
   createdAt!: Date;
