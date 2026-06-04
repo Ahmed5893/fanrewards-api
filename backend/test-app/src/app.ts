@@ -66,7 +66,6 @@ app.addHook("onRequest", async (request, reply) => {
     }),
   });
 
-  // Global rate limit to protect the API from too many requests
   await app.register(dbPlugin);
 
   //global error handler

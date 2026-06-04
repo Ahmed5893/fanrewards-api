@@ -4,6 +4,8 @@ FanRewards API is a backend service for a simplified fan rewards system. Users c
 
 This project was built for the Belong Backend Developer technical assessment using Fastify, TypeScript, TypeORM, PostgreSQL, JWT authentication, Typebox validation, Jest, and Supertest.
 
+## Demo Video:
+ https://drive.google.com/file/d/1eXB7BimVhkC3nDmL0jX6NnVGD17S2ZP5/view?usp=sharing
 ## Features
 
 * JWT authentication with access and refresh tokens
